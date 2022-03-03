@@ -1,5 +1,5 @@
 import sys
-import os
+from collections import Counter
 import re
 
 keywords = ['program', 'declare', 'if', 'else', 'while', 'switchcase', 'forcase', 'incase', 'case', 'default', 'not',
@@ -51,7 +51,6 @@ class Token(object):
     def __str__(self):
         return '{0}\tfamily:"{1}", line: {2}'.format(self.recognized_string, self.family, self.line_number)
 
-
 class Lexer(object):
     def __init__(self, stream):
         self.stream = stream
@@ -59,6 +58,7 @@ class Lexer(object):
         self.offset = -1
         self.line = 1
         self.endFound = False
+        self.tokenList = []
         self.getChar()
 
     def nextToken(self):
@@ -148,6 +148,103 @@ class Lexer(object):
 
         return result
 
+class Syntax(object):
+    def __init__(self, stream):
+        self.stream = stream
+        self.current = None
+        self.offset = -2
+        self.endFound = False
+        self.getToken()
+
+    def checkSyntax(self):
+        if self.offset + 1 == len(self.stream) or self.endFound:
+            return False
+
+        if self.offset == 0 and self.current.recognized_string != "program":
+            print("Den evales program:(")
+            self.endFound = True
+            return False
+
+        if self.current.recognized_string in keywords:
+            if self.current.recognized_string == "program":
+                self.program()
+
+        return True
+
+    def getToken(self):
+        if self.offset + 2 > len(self.stream):
+            self.endFound = True
+            return None
+
+        self.offset += 1
+        result = self.stream[self.offset]
+        self.current = self.stream[self.offset]
+
+        return result
+
+    def getPreviousToken(self):
+        if self.offset - 1 < len(self.stream):
+            self.endFound = True
+            return None
+
+        self.offset -= 1
+        result = self.stream[self.offset]
+        self.current = self.stream[self.offset]
+
+        return result
+
+    def block(self):
+        if self.current.recognized_string == "{":
+            self.getToken()
+            self.declarations()
+            self.subprograms()
+            self.blockstatements()
+            self.getToken()
+            if self.current.recognized_string == "}":
+                return True
+
+        return False
+
+    def declarations(self):
+        while self.current.recognized_string == "declare":
+            delimiters = []
+            idFound = False
+            self.getToken()
+
+            while self.current.family == "id":
+                idFound = True
+                self.getToken()
+                if self.current.family == "delimiter":
+                    delimiters.append(self.current.recognized_string)
+                    self.getToken()
+                else:
+                    print("den evales delimiter anamesa sta id")
+
+            if not idFound:
+                if self.current.family == "delimiter":
+                    delimiters.append(self.current.recognized_string)
+                    self.getToken()
+
+            print(delimiters[0:-1])
+            for i in delimiters[0:-1]:
+                if i != ",":
+                    print("error, comma not found between ids")
+                    break
+            if len(delimiters) > 0 and (delimiters[-1] != ";"):
+                print("error, declaration failure")
+
+        print(self.current)
+
+
+    def program(self):
+        self.getToken()
+        if self.current.family == "id":
+            self.getToken()
+            self.block()
+            self.getToken()
+            if self.current.recognized_string == ".":
+                if self.endFound:
+                    print("EOF")
 
 def main(argv):
     form = argv
@@ -156,8 +253,19 @@ def main(argv):
         lex = Lexer(form)
         token = lex.nextToken()
         while token is not None:
+            lex.tokenList.append(token)
             print(token)
             token = lex.nextToken()
+
+        # Syntax
+        syntax = Syntax(lex.tokenList)
+        token = syntax.getToken()
+        sntx = syntax.checkSyntax()
+        while sntx is not False:
+            print(token, "       |       " ,sntx)
+            token = syntax.getToken()
+            sntx = syntax.checkSyntax()
+        print(token, "       |       ", sntx)
     else:
         print('Invalid parameters.')
         sys.exit(1)
