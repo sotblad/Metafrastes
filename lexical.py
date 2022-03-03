@@ -75,6 +75,9 @@ class Lexer(object):
                     concat = str(temp) + str(getChar)
                     if (concat in allComplex):
                         return Token(concat, i, self.line)
+                    else:
+                        self.getPreviousChar()
+                        return Token(temp, i, self.line)
                 if(self.current == "."):
                     self.endFound = True
                     return Token(self.current, i, self.line)
@@ -102,6 +105,7 @@ class Lexer(object):
                     self.getPreviousChar()
                     break
             word = ''.join(tmp)
+        #    print(word)
 
             if (self.checkRegex(alphanumeric, word)):
                 found = "id"
@@ -225,15 +229,14 @@ class Syntax(object):
                     delimiters.append(self.current.recognized_string)
                     self.getToken()
 
-            print(delimiters[0:-1])
             for i in delimiters[0:-1]:
                 if i != ",":
                     print("error, comma not found between ids")
                     break
             if len(delimiters) > 0 and (delimiters[-1] != ";"):
                 print("error, declaration failure")
-
-        print(self.current)
+            if len(delimiters) == 0:
+                print("delimiters not found on declaration")
 
 
     def program(self):
@@ -254,7 +257,7 @@ def main(argv):
         token = lex.nextToken()
         while token is not None:
             lex.tokenList.append(token)
-            print(token)
+          #  print(token)
             token = lex.nextToken()
 
         # Syntax
