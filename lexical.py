@@ -17,6 +17,7 @@ relOperator = ["=", "<", ">"]
 delimiter = [";", ",", ":", "."]
 group = ["[", "]", "(", ")", "{", "}"]
 comment = ["#"]
+REL_OP = ["=", "<", ">", "<=", ">=", "<>"]
 
 values = [keywords, addOperator, mulOperator, relOperator, delimiter, group, comment]
 
@@ -87,12 +88,15 @@ class Lexer(object):
             tmp = []
             while (self.current != " " and self.current != "\n" and self.current not in delimiter):
                 getChar = self.getChar()
-                if (getChar.isnumeric()):
+
+                if getChar.isnumeric():
                     tmp.append(getChar)
                 else:
+                    self.getPreviousChar()
                     break
             num = ''.join(tmp)
             if (self.checkRegex(number, num)):
+
                 return Token(num, "number", self.line)
 
         if self.current.isalpha():
@@ -105,7 +109,6 @@ class Lexer(object):
                     self.getPreviousChar()
                     break
             word = ''.join(tmp)
-        #    print(word)
 
             if (self.checkRegex(alphanumeric, word)):
                 found = "id"
@@ -169,9 +172,7 @@ class Syntax(object):
             self.endFound = True
             return False
 
-        if self.current.recognized_string in keywords:
-            if self.current.recognized_string == "program":
-                self.program()
+        self.program()
 
         return True
 
@@ -203,51 +204,477 @@ class Syntax(object):
             self.declarations()
             self.subprograms()
             self.blockstatements()
-            self.getToken()
             if self.current.recognized_string == "}":
                 return True
-
+        else:
+            print("Error, block start not found")
         return False
 
     def declarations(self):
         while self.current.recognized_string == "declare":
-            delimiters = []
-            idFound = False
             self.getToken()
 
-            while self.current.family == "id":
-                idFound = True
+            self.varlist()
+            if self.current.recognized_string != ";":
+                print("Error, end delimiter not found")
+            self.getToken()
+
+    def varlist(self):
+        needNextId = False
+        while self.current.family == "id":
+            needNextId = False
+            self.getToken()
+            if self.current.recognized_string in [",", ";"]:
+                if self.current.recognized_string == ",":
+                    needNextId = True
+                    self.getToken()
+            else:
+                needNextId = False
+                print("Error, delimiter not found on declaration")
+                break
+
+        if(needNextId == True):
+            print("Error, comma delimiter without next id")
+
+        return True
+
+    def subprograms(self):
+        while(self.subprogram()):
+            pass
+
+    def subprogram(self):
+        while self.current.recognized_string in ["function", "procedure"]:
+            self.getToken()
+            if self.current.family == "id":
                 self.getToken()
-                if self.current.family == "delimiter":
-                    delimiters.append(self.current.recognized_string)
+                if self.current.recognized_string == "(":
                     self.getToken()
-                else:
-                    print("den evales delimiter anamesa sta id")
+                    self.formalparlist()
+                    if self.current.recognized_string == ")":
+                        self.getToken()
+                        self.block()
+                        return True
+        return False
 
-            if not idFound:
-                if self.current.family == "delimiter":
-                    delimiters.append(self.current.recognized_string)
-                    self.getToken()
+    def formalparlist(self):
+        needNextItem = False
+        while self.formalparitem():
+            needNextItem = False
+            self.getToken()
+            if self.current.recognized_string == ",":
+                needNextItem = True
+                self.getToken()
 
-            for i in delimiters[0:-1]:
-                if i != ",":
-                    print("error, comma not found between ids")
-                    break
-            if len(delimiters) > 0 and (delimiters[-1] != ";"):
-                print("error, declaration failure")
-            if len(delimiters) == 0:
-                print("delimiters not found on declaration")
+        if (needNextItem == True):
+            print("Error, comma delimiter without next item")
 
+        return True
 
-    def program(self):
-        self.getToken()
+    def formalparitem(self):
+        if self.current.recognized_string in ["in", "inout"]:
+            self.getToken()
+            if self.current.family != "id":
+                print("error, id not found in formalparitem")
+                return False
+        else:
+            return False
+
+        return True
+
+    def statement(self):
+        if self.current.recognized_string in ["assign", "if", "while", "switchcase", "forcase", "incase", "call", "return", "input", "print"]:
+            if self.current.recognized_string == "if":
+                self.ifStat()
+            elif self.current.recognized_string == "while":
+                self.whileStat()
+            elif self.current.recognized_string == "switch":
+                self.switchcaseStat()
+            elif self.current.recognized_string == "forcase":
+                self.forcaseStat()
+            elif self.current.recognized_string == "incase":
+                self.incaseStat()
+            elif self.current.recognized_string == "call":
+                self.callStat()
+            elif self.current.recognized_string == "return":
+                self.returnStat()
+            elif self.current.recognized_string == "input":
+                self.inputStat()
+            elif self.current.recognized_string == "print":
+                self.printStat()
+            else:
+                self.assignStat()
+
+            return True
+        return False
+
+    def statements(self):
+        if self.statement():
+            self.getToken()
+            if self.current.recognized_string == ";":
+                return True
+        elif self.current.regognized_string == "{":
+            self.getToken()
+            self.blockstatements()
+            if self.current.recognized_string == "}":
+                return True
+        return False
+
+    def assignStat(self):
         if self.current.family == "id":
             self.getToken()
-            self.block()
+            if self.current.recognized_string == ":":
+                self.getToken()
+                if self.current.recognized_string == "=":
+                    pass ### TODO
+                else:
+                    self.getPreviousToken()
+            else:
+                self.getPreviousToken()
+        else:
+            return False
+
+    def assignStat(self):
+        if self.current.family == "id":
             self.getToken()
-            if self.current.recognized_string == ".":
-                if self.endFound:
-                    print("EOF")
+            if self.current.recognized_string == ":=":
+                self.getToken()
+                if self.expression():
+                    return True
+        return False
+
+    def ifStat(self):
+        if self.current.recognized_string == "if":
+            self.getToken()
+            if self.current.recognized_string == "(":
+                self.getToken()
+                if self.condition():
+                    self.getToken()
+                    if self.current.recognized_string == ")":
+                        self.getToken()
+                        if self.statements():
+                            self.getToken()
+                            if self.elsepart():
+                                return True
+        return False
+
+    def elsepart(self):
+        if self.current.recognized_string == "else":
+            self.getToken()
+            if self.statements():
+                return True
+            return False
+        return True
+
+    def whileStat(self):
+        if self.current.recognized_string == "while":
+            self.getToken()
+            if self.current.recognized_string == "(":
+                self.getToken()
+                if self.condition():
+                    self.getToken()
+                    if self.current.recognized_string == ")":
+                        self.getToken()
+                        if self.statements():
+                            return True
+        return False
+
+    def switchcaseStat(self):
+        if self.current.recognized_string == "switchcase":
+            self.getToken()
+            while self.current.recognized_string == "case":
+                self.getToken()
+                if self.current.recognized_string == "(":
+                    self.getToken()
+                    if self.condition():
+                        self.getToken()
+                        if self.current.recognized_string == ")":
+                            self.getToken()
+                            if self.statements():
+                                continue
+                            else:
+                                return False
+                        else:
+                            return False
+                    else:
+                        return False
+                else:
+                    return False
+            if self.current.recognized_string == "default":
+                self.getToken()
+                if self.statements():
+                    return True
+            return False
+        return False
+
+    def forcaseStat(self):
+        if self.current.recognized_string == "forcase":
+            self.getToken()
+            while self.current.recognized_string == "case":
+                self.getToken()
+                if self.current.recognized_string == "(":
+                    self.getToken()
+                    if self.condition():
+                        self.getToken()
+                        if self.current.recognized_string == ")":
+                            self.getToken()
+                            if self.statements():
+                                continue
+                            else:
+                                return False
+                        else:
+                            return False
+                    else:
+                        return False
+                else:
+                    return False
+            if self.current.recognized_string == "default":
+                self.getToken()
+                if self.statements():
+                    return True
+            return False
+        return False
+
+    def incaseStat(self):
+        if self.current.recognized_string == "incase":
+            self.getToken()
+            while self.current.recognized_string == "case":
+                self.getToken()
+                if self.current.recognized_string == "(":
+                    self.getToken()
+                    if self.condition():
+                        self.getToken()
+                        if self.current.recognized_string == ")":
+                            self.getToken()
+                            if self.statements():
+                                continue
+                            else:
+                                return False
+                        else:
+                            return False
+                    else:
+                        return False
+                else:
+                    return False
+            return True
+        return False
+
+
+
+    def returnStat(self):
+        if self.current.recognized_string == "return":
+            self.getToken()
+            if self.current.recognized_string == "(":
+                self.getToken()
+                if self.expression():
+                    self.getToken()
+
+                    if self.current.recognized_string == ")":
+                        return True
+        return False
+
+    def callStat(self):
+        if self.current.recognized_string == "call":
+            self.getToken()
+            if self.current.family == "id":
+                self.getToken()
+                if self.current.recognized_string == "(":
+                    self.getToken()
+                    if self.actualparlist():
+                        self.getToken()
+                        if self.current.recognized_string == ")":
+                            return True
+        return False
+
+    def printStat(self):
+        if self.current.recognized_string == "print":
+            self.getToken()
+            if self.current.recognized_string == "(":
+                self.getToken()
+                if self.expression():
+                    self.getToken()
+                    if self.current.recognized_string == ")":
+                        return True
+        return False
+
+    def inputStat(self):
+        if self.current.recognized_string == "input":
+            self.getToken()
+            if self.current.recognized_string == "(":
+                self.getToken()
+                if self.current.family == "id":
+                    self.getToken()
+                    if self.current.recognized_string == ")":
+                        return True
+        return False
+
+    def actualparlist(self):
+        needNextItem = False
+        while self.actualparitem():
+            needNextItem = False
+            self.getToken()
+            if self.current.recognized_string == ",":
+                needNextItem = True
+                self.getToken()
+
+        if (needNextItem == True):
+            print("Error, comma delimiter without next item")
+
+        return True
+
+    def actualparitem(self):
+        if self.current.recognized_string in ["in", "inout"]:
+            if self.current.recognized_string == "in":
+                self.getToken()
+                if not self.expression():
+                    print("error, expression not found in actualparitem")
+                    return False
+            else:
+                if self.current.family != "id":
+                    print("error, id not found in actualparitem")
+                    return False
+        else:
+            return False
+
+        return True
+
+    def condition(self):
+        if self.boolterm():
+            self.getToken()
+            while self.current.recognized_string == "or":
+                self.getToken()
+                if self.boolterm():
+                    self.getToken()
+                    return True
+                return False
+            return True
+        return False
+
+    def boolterm(self):
+        if self.boolfactor():
+            self.getToken()
+            while self.current.recognized_string == "and":
+                self.getToken()
+                if self.boolfactor():
+                    self.getToken()
+                    return True
+                return False
+            return True
+        return False
+
+
+    def boolfactor(self):
+        if self.current.recognized_string == "not":
+            self.getToken()
+            if self.current.recognized_string == "[":
+                self.getToken()
+                self.condition()
+                self.getToken()
+                if self.current.recognized_string == "]":
+                    return True
+            return False
+        elif self.current.recognized_string == "[":
+            self.getToken()
+            self.condition()
+            self.getToken()
+            if self.current.recognized_string == "]":
+                return True
+            return False
+        elif self.expression():
+            self.getToken()
+            if self.current.recognized_string in REL_OP:
+                self.getToken()
+                if self.expression():
+                    return True
+            return False
+        return False
+
+
+    def expression(self):
+        if self.optionalSign():
+            if self.term():
+                while self.current.recognized_string in addOperator:
+                    self.getToken()
+                    if self.term():
+                        self.getToken()
+                        return True
+                    return False
+                return True
+        return False
+
+    def term(self):
+        if self.factor():
+            self.getToken()
+            while self.current.recognized_string in mulOperator:
+                self.getToken()
+                if self.factor():
+                    self.getToken()
+                    return True
+                return False
+            return True
+        return False
+
+    def factor(self):
+        if self.current.recognized_string.isnumeric():
+            return True
+        elif self.current.recognized_string == "(":
+            self.getToken()
+            self.expression()
+            if self.current.recognized_string == ")":
+                return True
+            return False
+        elif self.current.family == "id":
+            self.getToken()
+            if self.idtail():
+                return True
+            return False
+        return False
+
+
+
+    def idtail(self):
+        if self.current.recognized_string == "(":
+            self.getToken()
+            self.actualparlist()
+            if self.current.recognized_string == ")":
+                return True
+            return False
+        return True
+
+    def optionalSign(self):
+        if self.current.recognized_string in addOperator:
+            return True
+        return True
+
+    def blockstatements(self):
+        needNextStatement = False
+        while self.statement():
+            needNextStatement = False
+            self.getToken()
+            if self.current.recognized_string == ";":
+                self.getToken()
+                needNextStatement = True
+
+        if(needNextStatement):
+            print("Error, no next statement found after delimiter")
+
+    def program(self):
+        if self.current.recognized_string == "program":
+            self.getToken()
+            if self.current.family == "id":
+                self.getToken()
+                self.block()
+                self.getToken()
+
+                if self.current.recognized_string == ".":
+                    self.getToken()
+                    if self.endFound:
+                        print("PARSED GGEZ")
+                else:
+                    print("ERROR, ending character not found")
+            else:
+                print("ERROR, id not found after program")
+        else:
+            print("ERROR, program not found")
 
 def main(argv):
     form = argv
@@ -257,18 +684,13 @@ def main(argv):
         token = lex.nextToken()
         while token is not None:
             lex.tokenList.append(token)
-          #  print(token)
+            print(token)
             token = lex.nextToken()
 
         # Syntax
         syntax = Syntax(lex.tokenList)
         token = syntax.getToken()
         sntx = syntax.checkSyntax()
-        while sntx is not False:
-            print(token, "       |       " ,sntx)
-            token = syntax.getToken()
-            sntx = syntax.checkSyntax()
-        print(token, "       |       ", sntx)
     else:
         print('Invalid parameters.')
         sys.exit(1)
