@@ -214,7 +214,7 @@ class Syntax(object):
         return result
 
     def getPreviousToken(self):
-        if self.offset - 1 < len(self.stream):
+        if self.offset - 1 < 0:
             self.endFound = True
             return None
 
@@ -328,7 +328,6 @@ class Syntax(object):
             elif self.current.recognized_string == "print":
                 self.printStat()
             else:
-                print("ASAIN")
                 self.assignStat()
 
             return True
@@ -339,7 +338,7 @@ class Syntax(object):
             self.getToken()
             if self.current.recognized_string == ";":
                 return True
-        elif self.current.regognized_string == "{":
+        elif self.current.recognized_string == "{":
             self.getToken()
             self.blockstatements()
             if self.current.recognized_string == "}":
@@ -399,7 +398,7 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
-                    self.getToken()
+                    self.getPreviousToken()
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
@@ -567,7 +566,7 @@ class Syntax(object):
 
     def condition(self):
         if self.boolterm():
-            self.getToken()
+          #  self.getToken()
             while self.current.recognized_string == "or":
                 self.getToken()
                 if self.boolterm():
@@ -579,7 +578,7 @@ class Syntax(object):
 
     def boolterm(self):
         if self.boolfactor():
-            self.getToken()
+        #    self.getToken()
             while self.current.recognized_string == "and":
                 self.getToken()
                 if self.boolfactor():
@@ -608,7 +607,7 @@ class Syntax(object):
                 return True
             return False
         elif self.expression():
-            self.getToken()
+            self.getPreviousToken()
             if self.current.recognized_string in REL_OP:
                 self.getToken()
                 if self.expression():
@@ -623,7 +622,7 @@ class Syntax(object):
                 while self.current.recognized_string in addOperator:
                     self.getToken()
                     if self.term():
-                        self.getToken()
+                      #  self.getToken()
                         return True
                     return False
                 return True
@@ -675,16 +674,13 @@ class Syntax(object):
 
     def blockstatements(self):
         needNextStatement = False
-        print(self.current)
         while self.statement():
-            print("EDW?" , self.current)
             needNextStatement = False
             if(self.current != ";"):
                 self.getToken()
             if self.current.recognized_string == ";":
                 self.getToken()
                 needNextStatement = True
-                print(self.current)
 
         if(needNextStatement):
             Error(self, "Error, no next statement found after delimiter")
@@ -696,7 +692,6 @@ class Syntax(object):
                 self.getToken()
                 self.block()
                 self.getToken()
-            #    print(self.current)
                 if self.current.recognized_string == ".":
                     self.getToken()
                     if self.endFound:
