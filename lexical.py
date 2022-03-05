@@ -340,7 +340,9 @@ class Syntax(object):
                 return True
         elif self.current.recognized_string == "{":
             self.getToken()
+
             self.blockstatements()
+
             if self.current.recognized_string == "}":
                 return True
         return False
@@ -518,7 +520,7 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.expression():
-                    self.getToken()
+                    self.getPreviousToken()
                     if self.current.recognized_string == ")":
                         return True
         return False
@@ -683,7 +685,8 @@ class Syntax(object):
                 needNextStatement = True
 
         if(needNextStatement):
-            Error(self, "Error, no next statement found after delimiter")
+            if self.current.recognized_string != "}":
+                Error(self, "Error, no next statement found after delimiter")
 
     def program(self):
         if self.current.recognized_string == "program":
@@ -691,7 +694,9 @@ class Syntax(object):
             if self.current.family == "id":
                 self.getToken()
                 self.block()
+            #    print("1", self.current)
                 self.getToken()
+             #   print("2",self.current)
                 if self.current.recognized_string == ".":
                     self.getToken()
                     if self.endFound:
