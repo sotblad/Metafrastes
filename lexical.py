@@ -6,7 +6,7 @@ keywords = ['program', 'declare', 'if', 'else', 'while', 'switchcase', 'forcase'
             'and', 'or', 'function', 'procedure', 'call', 'return', 'in', 'inout', 'input', 'print']
 
 family = [
-    'keywords', 'addOperator', 'mulOperator', 'relOperator', 'delimiter', 'group', 'comment'
+    'keywords', 'addOperator', 'mulOperator', 'relOperator', 'delimiter', 'group'
 ]
 
 alphanumeric = "[a-zA-Z_][a-zA-Z0-9_]*"
@@ -19,7 +19,7 @@ group = ["[", "]", "(", ")", "{", "}"]
 comment = ["#"]
 REL_OP = ["=", "<", ">", "<=", ">=", "<>"]
 
-values = [keywords, addOperator, mulOperator, relOperator, delimiter, group, comment]
+values = [keywords, addOperator, mulOperator, relOperator, delimiter, group]
 
 dict = {}
 counter = 0
@@ -52,6 +52,12 @@ class Token(object):
     def __str__(self):
         return '{0}\tfamily:"{1}", line: {2}'.format(self.recognized_string, self.family, self.line_number)
 
+class Error(object):
+    def __init__(self, syntax, message):
+        syntax.endFound = True
+        print("Syntax error @ line " + str(syntax.current.line_number) + " with message: '" + str(message) + "'")
+
+
 class Lexer(object):
     def __init__(self, stream):
         self.stream = stream
@@ -67,6 +73,19 @@ class Lexer(object):
             return None
 
         self.checkWhite()
+
+        if self.current in comment:
+            self.getChar()
+            getChar = self.getChar()
+            endCommentFound = False
+            while getChar != "\n":
+                if getChar in comment:
+                    endCommentFound = True
+                    self.getChar()
+                    break
+                getChar = self.getChar()
+            if not endCommentFound:
+                print("ERROR, COMMENT SYNTAX INVALID")
 
         for i in dict.keys():
             if self.current in dict[i]:
@@ -171,7 +190,6 @@ class Syntax(object):
             print("Den evales program:(")
             self.endFound = True
             return False
-
         self.program()
 
         return True
@@ -689,6 +707,7 @@ def main(argv):
 
         # Syntax
         syntax = Syntax(lex.tokenList)
+        error = Error(syntax, "test")
         token = syntax.getToken()
         sntx = syntax.checkSyntax()
     else:
