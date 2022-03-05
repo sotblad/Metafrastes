@@ -84,6 +84,7 @@ class Lexer(object):
                     self.getChar()
                     break
                 getChar = self.getChar()
+            self.line += 1
             if not endCommentFound:
                 print("ERROR, COMMENT SYNTAX INVALID")
 
@@ -101,6 +102,13 @@ class Lexer(object):
                 if(self.current == "."):
                     self.endFound = True
                     return Token(self.current, i, self.line)
+                if(self.current == "}"):
+                    getChar = self.getChar()
+                    if getChar == None:
+                        self.endFound = True
+                        return Token(self.current, i, self.line)
+                    else:
+                        self.getPreviousChar()
                 return Token(self.getChar(), i, self.line)
 
         if self.current.isnumeric():
@@ -187,7 +195,7 @@ class Syntax(object):
             return False
 
         if self.offset == 0 and self.current.recognized_string != "program":
-            print("Den evales program:(")
+            Error(self, "Den evales program:(")
             self.endFound = True
             return False
         self.program()
@@ -225,7 +233,7 @@ class Syntax(object):
             if self.current.recognized_string == "}":
                 return True
         else:
-            print("Error, block start not found")
+            Error(self, "Error, block start not found")
         return False
 
     def declarations(self):
@@ -234,7 +242,7 @@ class Syntax(object):
 
             self.varlist()
             if self.current.recognized_string != ";":
-                print("Error, end delimiter not found")
+                Error(self, "Error, end delimiter not found")
             self.getToken()
 
     def varlist(self):
@@ -248,11 +256,11 @@ class Syntax(object):
                     self.getToken()
             else:
                 needNextId = False
-                print("Error, delimiter not found on declaration")
+                Error(self, "Error, delimiter not found on declaration")
                 break
 
         if(needNextId == True):
-            print("Error, comma delimiter without next id")
+            Error(self, "Error, comma delimiter without next id")
 
         return True
 
@@ -284,7 +292,7 @@ class Syntax(object):
                 self.getToken()
 
         if (needNextItem == True):
-            print("Error, comma delimiter without next item")
+            Error(self, "Error, comma delimiter without next item")
 
         return True
 
@@ -292,7 +300,7 @@ class Syntax(object):
         if self.current.recognized_string in ["in", "inout"]:
             self.getToken()
             if self.current.family != "id":
-                print("error, id not found in formalparitem")
+                Error(self, "error, id not found in formalparitem")
                 return False
         else:
             return False
@@ -300,7 +308,7 @@ class Syntax(object):
         return True
 
     def statement(self):
-        if self.current.recognized_string in ["assign", "if", "while", "switchcase", "forcase", "incase", "call", "return", "input", "print"]:
+        if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return", "input", "print"] or self.current.family == "id":
             if self.current.recognized_string == "if":
                 self.ifStat()
             elif self.current.recognized_string == "while":
@@ -320,6 +328,7 @@ class Syntax(object):
             elif self.current.recognized_string == "print":
                 self.printStat()
             else:
+                print("ASAIN")
                 self.assignStat()
 
             return True
@@ -337,19 +346,20 @@ class Syntax(object):
                 return True
         return False
 
-    def assignStat(self):
-        if self.current.family == "id":
-            self.getToken()
-            if self.current.recognized_string == ":":
-                self.getToken()
-                if self.current.recognized_string == "=":
-                    pass ### TODO
-                else:
-                    self.getPreviousToken()
-            else:
-                self.getPreviousToken()
-        else:
-            return False
+    # def assignStat(self):
+    #     if self.current.family == "id":
+    #         self.getToken()
+    #         if self.current.recognized_string == ":":
+    #             self.getToken()
+    #             if self.current.recognized_string == "=":
+    #                 pass ### TODO
+    #             else:
+    #                 self.getPreviousToken()
+    #         else:
+    #             self.getPreviousToken()
+    #     else:
+    #         self.getPreviousToken()
+    #         return False
 
     def assignStat(self):
         if self.current.family == "id":
@@ -535,7 +545,7 @@ class Syntax(object):
                 self.getToken()
 
         if (needNextItem == True):
-            print("Error, comma delimiter without next item")
+            Error(self, "Error, comma delimiter without next item")
 
         return True
 
@@ -544,11 +554,11 @@ class Syntax(object):
             if self.current.recognized_string == "in":
                 self.getToken()
                 if not self.expression():
-                    print("error, expression not found in actualparitem")
+                    Error(self, "error, expression not found in actualparitem")
                     return False
             else:
                 if self.current.family != "id":
-                    print("error, id not found in actualparitem")
+                    Error(self, "error, id not found in actualparitem")
                     return False
         else:
             return False
@@ -665,15 +675,19 @@ class Syntax(object):
 
     def blockstatements(self):
         needNextStatement = False
+        print(self.current)
         while self.statement():
+            print("EDW?" , self.current)
             needNextStatement = False
-            self.getToken()
+            if(self.current != ";"):
+                self.getToken()
             if self.current.recognized_string == ";":
                 self.getToken()
                 needNextStatement = True
+                print(self.current)
 
         if(needNextStatement):
-            print("Error, no next statement found after delimiter")
+            Error(self, "Error, no next statement found after delimiter")
 
     def program(self):
         if self.current.recognized_string == "program":
@@ -682,17 +696,17 @@ class Syntax(object):
                 self.getToken()
                 self.block()
                 self.getToken()
-
+            #    print(self.current)
                 if self.current.recognized_string == ".":
                     self.getToken()
                     if self.endFound:
                         print("PARSED GGEZ")
                 else:
-                    print("ERROR, ending character not found")
+                    Error(self, "ERROR, ending character not found")
             else:
-                print("ERROR, id not found after program")
+                Error(self, "ERROR, id not found after program")
         else:
-            print("ERROR, program not found")
+            Error(self, "ERROR, program not found")
 
 def main(argv):
     form = argv
@@ -702,12 +716,11 @@ def main(argv):
         token = lex.nextToken()
         while token is not None:
             lex.tokenList.append(token)
-            print(token)
+         #   print(token)
             token = lex.nextToken()
 
         # Syntax
         syntax = Syntax(lex.tokenList)
-        error = Error(syntax, "test")
         token = syntax.getToken()
         sntx = syntax.checkSyntax()
     else:
