@@ -230,12 +230,13 @@ class Syntax(object):
         if self.current.recognized_string == "{":
             self.getToken()
             self.declarations()
-       #     print("TELEIWNEI DECDLARATIONS", self.current)
+         #   print("TELEIWNEI DECDLARATIONS", self.current)
             self.subprograms()
-        #    print("TELEIWNEI SUB", self.current)
+          #  print("TELEIWNEI SUB", self.current)
             self.blockstatements()
-        #    print("TELEIWNEI BLST", self.current)
+          #  print("TELEIWNEI BLST", self.current)
             if self.current.recognized_string == "}":
+            #    print("TELOS", self.current)
                 return True
         else:
             Error(self, "Error, block start not found")
@@ -322,13 +323,10 @@ class Syntax(object):
                 self.ifStat()
             elif self.current.recognized_string == "while":
                 self.whileStat()
-            #    print("VRIKE WHILE", self.current)
             elif self.current.recognized_string == "switch":
                 self.switchcaseStat()
             elif self.current.recognized_string == "forcase":
-         #       print("FORCASE", self.current)
                 self.forcaseStat()
-        #        print("TELOS", self.current)
             elif self.current.recognized_string == "incase":
                 self.incaseStat()
             elif self.current.recognized_string == "call":
@@ -337,12 +335,10 @@ class Syntax(object):
                 self.returnStat()
             elif self.current.recognized_string == "input":
                 self.inputStat()
-          #      print("VRIKE INPUT", self.current)
             elif self.current.recognized_string == "print":
                 self.printStat()
             else:
                 self.assignStat()
-            #    print("VRIKE ASAIN", self.current)
 
             return True
         return False
@@ -350,6 +346,7 @@ class Syntax(object):
     def statements(self):
         if self.statement():
             self.getToken()
+
             if self.current.recognized_string == ";":
                 return True
         elif self.current.recognized_string == "{":
@@ -358,7 +355,6 @@ class Syntax(object):
             self.blockstatements()
 
             if self.current.recognized_string == "}":
-     #           print("VRISKEI KLEISIMO  AAAAA")
                 return True
         return False
 
@@ -392,7 +388,6 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
-                    self.getToken()
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
@@ -415,8 +410,6 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
-                  #  print("NAIIII", self.current)
-                   # self.getPreviousToken()
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
@@ -461,7 +454,6 @@ class Syntax(object):
                     if self.condition():
                         if self.current.recognized_string == ")":
                             self.getToken()
-             #               print("KLEIST", self.current)
                             if self.statements():
                                 self.getToken()
                                 break
@@ -512,7 +504,6 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.expression():
-                    self.getToken()
 
                     if self.current.recognized_string == ")":
                         return True
@@ -629,9 +620,7 @@ class Syntax(object):
             self.getPreviousToken()
             if self.current.recognized_string in REL_OP:
                 self.getToken()
-            #    print("EDWWW",self.current)
                 if self.expression():
-                 #   print("EXPRESSION", self.current)
                     self.getPreviousToken()
                     return True
             return False
@@ -651,7 +640,7 @@ class Syntax(object):
         return False
 
     def term(self):
-        if self.factor():
+        while self.factor():
             self.getToken()
             while self.current.recognized_string in mulOperator:
                 self.getToken()
@@ -671,6 +660,7 @@ class Syntax(object):
         elif self.current.recognized_string == "(":
             self.getToken()
             self.expression()
+            self.getToken()
             if self.current.recognized_string == ")":
                 return True
             return False
