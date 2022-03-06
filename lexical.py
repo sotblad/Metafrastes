@@ -340,13 +340,13 @@ class Syntax(object):
         return False
 
     def statements(self):
-        if self.statement():
+        while self.statement():
             self.getToken()
 
             if self.current.recognized_string == ";":
                 self.getToken()
                 return True
-        elif self.current.recognized_string == "{":
+        if self.current.recognized_string == "{":
             self.getToken()
             self.blockstatements()
             if self.current.recognized_string == "}":
