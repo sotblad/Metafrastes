@@ -230,13 +230,9 @@ class Syntax(object):
         if self.current.recognized_string == "{":
             self.getToken()
             self.declarations()
-         #   print("TELEIWNEI DECDLARATIONS", self.current)
             self.subprograms()
-          #  print("TELEIWNEI SUB", self.current)
             self.blockstatements()
-          #  print("TELEIWNEI BLST", self.current)
             if self.current.recognized_string == "}":
-            #    print("TELOS", self.current)
                 return True
         else:
             Error(self, "Error, block start not found")
@@ -348,30 +344,14 @@ class Syntax(object):
             self.getToken()
 
             if self.current.recognized_string == ";":
+                self.getToken()
                 return True
         elif self.current.recognized_string == "{":
             self.getToken()
-
             self.blockstatements()
-
             if self.current.recognized_string == "}":
                 return True
         return False
-
-    # def assignStat(self):
-    #     if self.current.family == "id":
-    #         self.getToken()
-    #         if self.current.recognized_string == ":":
-    #             self.getToken()
-    #             if self.current.recognized_string == "=":
-    #                 pass ### TODO
-    #             else:
-    #                 self.getPreviousToken()
-    #         else:
-    #             self.getPreviousToken()
-    #     else:
-    #         self.getPreviousToken()
-    #         return False
 
     def assignStat(self):
         if self.current.family == "id":
@@ -617,7 +597,8 @@ class Syntax(object):
                 return True
             return False
         elif self.expression():
-            self.getPreviousToken()
+            if self.current.recognized_string not in REL_OP:
+                self.getPreviousToken()
             if self.current.recognized_string in REL_OP:
                 self.getToken()
                 if self.expression():
@@ -666,6 +647,7 @@ class Syntax(object):
             return False
         elif self.current.family == "id":
             self.getToken()
+
             if self.idtail():
                 return True
             return False
@@ -677,6 +659,9 @@ class Syntax(object):
         if self.current.recognized_string == "(":
             self.getToken()
             self.actualparlist()
+            self.getToken()
+            if self.current.recognized_string != ")":
+                self.getPreviousToken()
             if self.current.recognized_string == ")":
                 return True
             return False
@@ -689,6 +674,8 @@ class Syntax(object):
 
     def blockstatements(self):
         needNextStatement = False
+        while self.current.recognized_string == ";":
+            self.getToken()
         while self.statement():
             needNextStatement = False
             if(self.current != ";"):
