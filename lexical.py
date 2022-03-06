@@ -76,14 +76,16 @@ class Lexer(object):
 
         if self.current in comment:
             self.getChar()
-            getChar = self.getChar()
+            while self.current in [" ", "\t"]:
+                self.getChar()
             endCommentFound = False
-            while getChar != "\n":
-                if getChar in comment:
+            while self.current != "\n":
+                if self.current in comment:
                     endCommentFound = True
                     self.getChar()
                     break
-                getChar = self.getChar()
+                self.getChar()
+            self.checkWhite()
             self.line += 1
             if not endCommentFound:
                 print("ERROR, COMMENT SYNTAX INVALID")
@@ -228,8 +230,11 @@ class Syntax(object):
         if self.current.recognized_string == "{":
             self.getToken()
             self.declarations()
+       #     print("TELEIWNEI DECDLARATIONS", self.current)
             self.subprograms()
+        #    print("TELEIWNEI SUB", self.current)
             self.blockstatements()
+        #    print("TELEIWNEI BLST", self.current)
             if self.current.recognized_string == "}":
                 return True
         else:
@@ -265,8 +270,12 @@ class Syntax(object):
         return True
 
     def subprograms(self):
+        subBool = False
         while(self.subprogram()):
+            subBool = True
             pass
+        if subBool:
+            self.getToken()
 
     def subprogram(self):
         while self.current.recognized_string in ["function", "procedure"]:
@@ -313,6 +322,7 @@ class Syntax(object):
                 self.ifStat()
             elif self.current.recognized_string == "while":
                 self.whileStat()
+            #    print("VRIKE WHILE", self.current)
             elif self.current.recognized_string == "switch":
                 self.switchcaseStat()
             elif self.current.recognized_string == "forcase":
@@ -325,10 +335,12 @@ class Syntax(object):
                 self.returnStat()
             elif self.current.recognized_string == "input":
                 self.inputStat()
+          #      print("VRIKE INPUT", self.current)
             elif self.current.recognized_string == "print":
                 self.printStat()
             else:
                 self.assignStat()
+            #    print("VRIKE ASAIN", self.current)
 
             return True
         return False
@@ -400,7 +412,8 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
-                    self.getPreviousToken()
+                #    print("NAIIII", self.current)
+                   # self.getPreviousToken()
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
@@ -644,6 +657,7 @@ class Syntax(object):
 
     def factor(self):
         if self.current.recognized_string.isnumeric():
+            print("NUMERIC")
             return True
         elif self.current.recognized_string == "(":
             self.getToken()
@@ -653,6 +667,9 @@ class Syntax(object):
             return False
         elif self.current.family == "id":
             self.getToken()
+          #  print(self.current)
+           # if(self.current == ")"):
+              #  self.getPreviousToken()
             if self.idtail():
                 return True
             return False
@@ -675,8 +692,10 @@ class Syntax(object):
         return True
 
     def blockstatements(self):
+      #  print(self.current)
         needNextStatement = False
         while self.statement():
+           # print("STATEMENT:",self.current)
             needNextStatement = False
             if(self.current != ";"):
                 self.getToken()
@@ -694,9 +713,7 @@ class Syntax(object):
             if self.current.family == "id":
                 self.getToken()
                 self.block()
-            #    print("1", self.current)
                 self.getToken()
-             #   print("2",self.current)
                 if self.current.recognized_string == ".":
                     self.getToken()
                     if self.endFound:
@@ -716,7 +733,7 @@ def main(argv):
         token = lex.nextToken()
         while token is not None:
             lex.tokenList.append(token)
-         #   print(token)
+        #    print(token)
             token = lex.nextToken()
 
         # Syntax
