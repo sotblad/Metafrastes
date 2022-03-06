@@ -326,7 +326,9 @@ class Syntax(object):
             elif self.current.recognized_string == "switch":
                 self.switchcaseStat()
             elif self.current.recognized_string == "forcase":
+         #       print("FORCASE", self.current)
                 self.forcaseStat()
+        #        print("TELOS", self.current)
             elif self.current.recognized_string == "incase":
                 self.incaseStat()
             elif self.current.recognized_string == "call":
@@ -356,6 +358,7 @@ class Syntax(object):
             self.blockstatements()
 
             if self.current.recognized_string == "}":
+     #           print("VRISKEI KLEISIMO  AAAAA")
                 return True
         return False
 
@@ -412,7 +415,7 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
-                #    print("NAIIII", self.current)
+                  #  print("NAIIII", self.current)
                    # self.getPreviousToken()
                     if self.current.recognized_string == ")":
                         self.getToken()
@@ -456,11 +459,12 @@ class Syntax(object):
                 if self.current.recognized_string == "(":
                     self.getToken()
                     if self.condition():
-                        self.getToken()
                         if self.current.recognized_string == ")":
                             self.getToken()
+             #               print("KLEIST", self.current)
                             if self.statements():
-                                continue
+                                self.getToken()
+                                break
                             else:
                                 return False
                         else:
@@ -625,7 +629,10 @@ class Syntax(object):
             self.getPreviousToken()
             if self.current.recognized_string in REL_OP:
                 self.getToken()
+            #    print("EDWWW",self.current)
                 if self.expression():
+                 #   print("EXPRESSION", self.current)
+                    self.getPreviousToken()
                     return True
             return False
         return False
@@ -657,7 +664,9 @@ class Syntax(object):
 
     def factor(self):
         if self.current.recognized_string.isnumeric():
-            print("NUMERIC")
+            self.getToken()
+            if not self.current.recognized_string == ")":
+                self.getPreviousToken()
             return True
         elif self.current.recognized_string == "(":
             self.getToken()
@@ -667,9 +676,6 @@ class Syntax(object):
             return False
         elif self.current.family == "id":
             self.getToken()
-          #  print(self.current)
-           # if(self.current == ")"):
-              #  self.getPreviousToken()
             if self.idtail():
                 return True
             return False
@@ -692,10 +698,8 @@ class Syntax(object):
         return True
 
     def blockstatements(self):
-      #  print(self.current)
         needNextStatement = False
         while self.statement():
-           # print("STATEMENT:",self.current)
             needNextStatement = False
             if(self.current != ";"):
                 self.getToken()
@@ -733,7 +737,7 @@ def main(argv):
         token = lex.nextToken()
         while token is not None:
             lex.tokenList.append(token)
-        #    print(token)
+          #  print(token)
             token = lex.nextToken()
 
         # Syntax
