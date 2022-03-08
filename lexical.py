@@ -86,7 +86,6 @@ class Lexer(object):
                     break
                 self.getChar()
             self.checkWhite()
-            self.line += 1
             if not endCommentFound:
                 print("ERROR, COMMENT SYNTAX INVALID")
 
@@ -722,13 +721,13 @@ def main(argv):
         token = lex.nextToken()
         while token is not None:
             lex.tokenList.append(token)
-         #   print(token)
+            print(token)
             token = lex.nextToken()
 
         # Syntax
-        syntax = Syntax(lex.tokenList)
-        token = syntax.getToken()
-        sntx = syntax.checkSyntax()
+        # syntax = Syntax(lex.tokenList)
+        # token = syntax.getToken()
+        # sntx = syntax.checkSyntax()
     else:
         print('Invalid parameters.')
         sys.exit(1)
