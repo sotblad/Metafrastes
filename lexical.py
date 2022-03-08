@@ -57,6 +57,11 @@ class Error(object):
         syntax.endFound = True
         print("Syntax error @ line " + str(syntax.current.line_number) + " with message: '" + str(message) + "'")
 
+class LexError(object):
+    def __init__(self, lex, message):
+        lex.endFound = True
+        print("Lexical error @ line " + str(lex.line-1) + " with message: '" + str(message) + "'")
+
 
 class Lexer(object):
     def __init__(self, stream):
@@ -87,7 +92,7 @@ class Lexer(object):
                 self.getChar()
             self.checkWhite()
             if not endCommentFound:
-                print("ERROR, COMMENT SYNTAX INVALID")
+                LexError(self, "invalid comment")
 
         for i in dict.keys():
             if self.current in dict[i]:
@@ -98,7 +103,7 @@ class Lexer(object):
                     temp = self.getChar()
                     if(checkAssign):
                         if self.current != "=":
-                            print("ERROR, ASSIGNMENT NOT FOUND")
+                            LexError(self, "Assignment not found")
                             checkAssign = False
                     getChar = self.getChar()
                     concat = str(temp) + str(getChar)
@@ -130,7 +135,7 @@ class Lexer(object):
                     self.getChar()
                 else:
                     if self.current.isalpha():
-                        print("ERROR, letter after digit found.")
+                        LexError(self, "letter after digit found")
                     break
             num = ''.join(tmp)
             if (self.checkRegex(number, num)):
@@ -163,6 +168,9 @@ class Lexer(object):
             return True
 
         return False
+
+    def checkAllowed(self):
+        allowed = ["+", "-", "*", "/", "<", ">", ":", "=", ";", ",", "[", "]", "(", ")", "{", "}", ".", "#"]
 
     def checkWhite(self):
         while self.current == " " or self.current == '\t':
@@ -239,10 +247,15 @@ class Syntax(object):
         if self.current.recognized_string == "{":
             self.getToken()
             self.declarations()
+       #     print(self.current)
             self.subprograms()
+            print("TELOS SAMP", self.current)
             self.blockstatements()
+            print("TELOS BLOCK STAME",self.current)
             if self.current.recognized_string == "}":
                 return True
+            else:
+                Error(self, "Error, block end not found")
         else:
             Error(self, "Error, block start not found")
         return False
@@ -284,7 +297,7 @@ class Syntax(object):
             self.getToken()
 
     def subprogram(self):
-        while self.current.recognized_string in ["function", "procedure"]:
+        if self.current.recognized_string in ["function", "procedure"]:
             self.getToken()
             if self.current.family == "id":
                 self.getToken()
@@ -295,6 +308,12 @@ class Syntax(object):
                         self.getToken()
                         self.block()
                         return True
+                    else:
+                        Error(self, "subprogram ending parenthesis error")
+                else:
+                    Error(self, "subprogram starting parenthesis error")
+            else:
+                Error(self, "subprogram ID not found")
         return False
 
     def formalparlist(self):
@@ -332,6 +351,7 @@ class Syntax(object):
                 self.switchcaseStat()
             elif self.current.recognized_string == "forcase":
                 self.forcaseStat()
+                self.getPreviousToken()
             elif self.current.recognized_string == "incase":
                 self.incaseStat()
             elif self.current.recognized_string == "call":
@@ -369,6 +389,12 @@ class Syntax(object):
                 self.getToken()
                 if self.expression():
                     return True
+                else:
+                    Error(self, "expression not found on assignment")
+            else:
+                Error(self, ":= not found on assignment")
+        else:
+            Error(self, "id not found on assignment")
         return False
 
     def ifStat(self):
@@ -383,6 +409,16 @@ class Syntax(object):
                             self.getToken()
                             if self.elsepart():
                                 return True
+                        else:
+                            Error(self, "statement not found on ifStat")
+                    else:
+                        Error(self, "ending parenthesis not found on ifStat")
+                else:
+                    Error(self, "condition not found on ifStat")
+            else:
+                Error(self, "starting parenthesis not found on ifStat")
+        else:
+            Error(self, "if not found on ifStat")
         return False
 
     def elsepart(self):
@@ -390,6 +426,8 @@ class Syntax(object):
             self.getToken()
             if self.statements():
                 return True
+            else:
+                Error(self, "statement not found on elsePart")
             return False
         return True
 
@@ -403,6 +441,16 @@ class Syntax(object):
                         self.getToken()
                         if self.statements():
                             return True
+                        else:
+                            Error(self, "statements not found on whileStat")
+                    else:
+                        Error(self, "closing parenthesis not found on whileStat")
+                else:
+                    Error(self, "condition not found on whileStat")
+            else:
+                Error(self, "starting parenthesis not found on whileStat")
+        else:
+            Error(self, "while not found on whileStat")
         return False
 
     def switchcaseStat(self):
@@ -496,6 +544,18 @@ class Syntax(object):
 
                     if self.current.recognized_string == ")":
                         return True
+                    else:
+                        self.getPreviousToken()
+                        if(self.current.recognized_string == ")"):
+                            return True
+                        self.getToken()
+                        Error(self, "closing parenthesis not found on returnStat")
+                else:
+                    Error(self, "expression not found on returnStat")
+            else:
+                Error(self, "starting parenthesis not found on returnStat")
+        else:
+            Error(self, "return not found on returnStat")
         return False
 
     def callStat(self):
@@ -509,6 +569,16 @@ class Syntax(object):
                         self.getToken()
                         if self.current.recognized_string == ")":
                             return True
+                        else:
+                            Error(self, "closing parenthesis not found on callStat")
+                    else:
+                        Error(self, "actualparlist not found on callStat")
+                else:
+                    Error(self, "starting parenthesis not found on callStat")
+            else:
+                Error(self, "id not found on callStat")
+        else:
+            Error(self, "call not found on callStat")
         return False
 
     def printStat(self):
@@ -520,6 +590,14 @@ class Syntax(object):
                     self.getPreviousToken()
                     if self.current.recognized_string == ")":
                         return True
+                    else:
+                        Error(self, "closing parenthesis not found on printStat")
+                else:
+                    Error(self, "expression not found on printStat")
+            else:
+                Error(self, "starting parenthesis not found on printStat")
+        else:
+            Error(self, "print not found on printStat")
         return False
 
     def inputStat(self):
@@ -531,6 +609,14 @@ class Syntax(object):
                     self.getToken()
                     if self.current.recognized_string == ")":
                         return True
+                    else:
+                        Error(self, "closing parenthesis not found on inputStat")
+                else:
+                    Error(self, "id not found on inputStat")
+            else:
+                Error(self, "starting parenthesis not found on inputStat")
+        else:
+            Error(self, "input not found on inputStat")
         return False
 
     def actualparlist(self):
@@ -548,7 +634,7 @@ class Syntax(object):
         return True
 
     def actualparitem(self):
-        if self.current.recognized_string in ["in", "inout"]:
+        while self.current.recognized_string in ["in", "inout"]:
             if self.current.recognized_string == "in":
                 self.getToken()
                 if not self.expression():
@@ -656,7 +742,6 @@ class Syntax(object):
             return False
         elif self.current.family == "id":
             self.getToken()
-
             if self.idtail():
                 return True
             return False
@@ -667,6 +752,7 @@ class Syntax(object):
     def idtail(self):
         if self.current.recognized_string == "(":
             self.getToken()
+
             self.actualparlist()
             self.getToken()
             if self.current.recognized_string != ")":
@@ -721,15 +807,18 @@ def main(argv):
     if form is not None:
         lex = Lexer(form)
         token = lex.nextToken()
-        while token is not None:
+        while token is not None and not lex.endFound:
+          #  print(token)
             lex.tokenList.append(token)
-            print(token)
             token = lex.nextToken()
+        if lex.current == ".":
+            #print(token)
+            lex.tokenList.append(token)
 
         # Syntax
-        # syntax = Syntax(lex.tokenList)
-        # token = syntax.getToken()
-        # sntx = syntax.checkSyntax()
+        syntax = Syntax(lex.tokenList)
+        token = syntax.getToken()
+        sntx = syntax.checkSyntax()
     else:
         print('Invalid parameters.')
         sys.exit(1)
