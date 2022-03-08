@@ -103,6 +103,8 @@ class Lexer(object):
                     getChar = self.getChar()
                     concat = str(temp) + str(getChar)
                     if (concat in allComplex):
+                        if(concat == ":="):
+                            i = "assignment"
                         return Token(concat, i, self.line)
                     else:
                         self.getPreviousChar()
