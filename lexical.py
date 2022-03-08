@@ -93,7 +93,14 @@ class Lexer(object):
         for i in dict.keys():
             if self.current in dict[i]:
                 if (self.current in complexCase):
+                    checkAssign = False
+                    if(self.current == ":"):
+                        checkAssign = True
                     temp = self.getChar()
+                    if(checkAssign):
+                        if self.current != "=":
+                            print("ERROR, ASSIGNMENT NOT FOUND")
+                            checkAssign = False
                     getChar = self.getChar()
                     concat = str(temp) + str(getChar)
                     if (concat in allComplex):
@@ -116,12 +123,13 @@ class Lexer(object):
         if self.current.isnumeric():
             tmp = []
             while (self.current != " " and self.current != "\n" and self.current not in delimiter):
-                getChar = self.getChar()
 
-                if getChar.isnumeric():
-                    tmp.append(getChar)
+                if self.current.isnumeric():
+                    tmp.append(self.current)
+                    self.getChar()
                 else:
-                    self.getPreviousChar()
+                    if self.current.isalpha():
+                        print("ERROR, letter after digit found.")
                     break
             num = ''.join(tmp)
             if (self.checkRegex(number, num)):
@@ -714,7 +722,7 @@ def main(argv):
         token = lex.nextToken()
         while token is not None:
             lex.tokenList.append(token)
-          #  print(token)
+         #   print(token)
             token = lex.nextToken()
 
         # Syntax
