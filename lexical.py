@@ -42,6 +42,7 @@ for i in complex:
     counter += 1
 allComplex = [item for sublist in dictComplex.values() for item in sublist]
 
+allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";", ",", ":", "[", "]", "(", ")", "{", "}", ".", "#", "\t", " ", "\n"]
 
 class Token(object):
     def __init__(self, recognized_string, family, line_number):
@@ -205,6 +206,17 @@ class Lexer(object):
         result = self.stream[self.offset]
         self.offset += 1
         self.current = self.stream[self.offset]
+
+        count = 0
+
+        if self.stream[self.offset] not in allowedAlphabet:
+            count += 1
+        if not self.stream[self.offset].isalpha():
+            count += 1
+        if not self.stream[self.offset].isnumeric():
+            count += 1
+        if count == 3:
+            LexError(self, " token includes illegal alphabet " + str(self.current))
 
         return result
 
@@ -819,7 +831,7 @@ def main(argv):
             lex.tokenList.append(token)
             token = lex.nextToken()
         if lex.current == ".":
-         #   print(token)
+          #  print(token)
             lex.checkValidation(token)
             lex.tokenList.append(token)
 
