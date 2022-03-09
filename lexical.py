@@ -366,7 +366,7 @@ class Syntax(object):
                 self.ifStat()
             elif self.current.recognized_string == "while":
                 self.whileStat()
-            elif self.current.recognized_string == "switch":
+            elif self.current.recognized_string == "switchcase":
                 self.switchcaseStat()
             elif self.current.recognized_string == "forcase":
                 self.forcaseStat()
@@ -479,10 +479,10 @@ class Syntax(object):
                 if self.current.recognized_string == "(":
                     self.getToken()
                     if self.condition():
-                        self.getToken()
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if self.statements():
+                                self.getToken()
                                 continue
                             else:
                                 return False
@@ -496,6 +496,10 @@ class Syntax(object):
                 self.getToken()
                 if self.statements():
                     return True
+                else:
+                    Error(self, "statements not found on default switchcase")
+            else:
+                Error(self, "default not found on switchcase")
             return False
         return False
 
@@ -535,7 +539,6 @@ class Syntax(object):
                 if self.current.recognized_string == "(":
                     self.getToken()
                     if self.condition():
-                        self.getToken()
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if self.statements():
