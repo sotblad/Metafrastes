@@ -59,9 +59,9 @@ class Error(object):
 
 class LexError(object):
     def __init__(self, lex, message):
+        lex.errFound = True
         lex.endFound = True
         print("Lexical error @ line " + str(lex.line-1) + " with message: '" + str(message) + "'")
-
 
 class Lexer(object):
     def __init__(self, stream):
@@ -69,9 +69,26 @@ class Lexer(object):
         self.current = None
         self.offset = -1
         self.line = 1
+        self.errFound = False
         self.endFound = False
         self.tokenList = []
         self.getChar()
+
+    def checkValidation(self, token):
+        token = token.recognized_string
+
+        if token.isnumeric():
+            self.checkValidInteger(token)
+        else:
+            self.getValidToken(token)
+
+    def getValidToken(self, token):
+        if len(token) > 30:
+            LexError(self, "Error, token length is invalid")
+
+    def checkValidInteger(self, token):
+        if int(token) > 4294967295:
+            LexError(self, "Error, integer length is invalid")
 
     def nextToken(self):
         if self.current == None or self.endFound:
@@ -209,18 +226,6 @@ class Syntax(object):
         self.endFound = False
         self.getToken()
 
-    def checkSyntax(self):
-        if self.offset + 1 == len(self.stream) or self.endFound:
-            return False
-
-        if self.offset == 0 and self.current.recognized_string != "program":
-            Error(self, "Den evales program:(")
-            self.endFound = True
-            return False
-        self.program()
-
-        return True
-
     def getToken(self):
         if self.offset + 2 > len(self.stream):
             self.endFound = True
@@ -246,12 +251,14 @@ class Syntax(object):
     def block(self):
         if self.current.recognized_string == "{":
             self.getToken()
+       #     print("arxi decla", self.current)
             self.declarations()
-       #     print(self.current)
+          #  print("TELOS DECL", self.current)
             self.subprograms()
-            print("TELOS SAMP", self.current)
+         #   print("TELOS SAMP", self.current)
             self.blockstatements()
-            print("TELOS BLOCK STAME",self.current)
+            if self.current.recognized_string == ".":
+                self.getPreviousToken()
             if self.current.recognized_string == "}":
                 return True
             else:
@@ -374,7 +381,7 @@ class Syntax(object):
 
             if self.current.recognized_string == ";":
                 self.getToken()
-                return True
+            return True
         if self.current.recognized_string == "{":
             self.getToken()
             self.blockstatements()
@@ -406,7 +413,6 @@ class Syntax(object):
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
-                            self.getToken()
                             if self.elsepart():
                                 return True
                         else:
@@ -744,7 +750,7 @@ class Syntax(object):
             self.getToken()
             if self.idtail():
                 return True
-            return False
+            return True
         return False
 
 
@@ -808,17 +814,20 @@ def main(argv):
         lex = Lexer(form)
         token = lex.nextToken()
         while token is not None and not lex.endFound:
-          #  print(token)
+           # print(token)
+            lex.checkValidation(token)
             lex.tokenList.append(token)
             token = lex.nextToken()
         if lex.current == ".":
-            #print(token)
+         #   print(token)
+            lex.checkValidation(token)
             lex.tokenList.append(token)
 
         # Syntax
-        syntax = Syntax(lex.tokenList)
-        token = syntax.getToken()
-        sntx = syntax.checkSyntax()
+        if not lex.errFound:
+            syntax = Syntax(lex.tokenList)
+            token = syntax.getToken()
+            sntx = syntax.program()
     else:
         print('Invalid parameters.')
         sys.exit(1)
