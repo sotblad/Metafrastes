@@ -267,8 +267,9 @@ class Syntax(object):
             self.declarations()
           #  print("TELOS DECL", self.current)
             self.subprograms()
-         #   print("TELOS SAMP", self.current)
+        #    print("TELOS SAMP", self.current)
             self.blockstatements()
+        #    print("TELOS BLST", self.current)
             if self.current.recognized_string == ".":
                 self.getPreviousToken()
             if self.current.recognized_string == "}":
@@ -525,19 +526,27 @@ class Syntax(object):
                             self.getToken()
                             if self.statements():
                                 self.getToken()
-                                break
+                                continue
                             else:
+                                Error(self, "statement not found on forcase")
                                 return False
                         else:
+                            Error(self, "closing parenthesis not found on forcase")
                             return False
                     else:
+                        Error(self, "condition not found on forcase")
                         return False
                 else:
+                    Error(self, "starting parenthesis not found on forcase")
                     return False
             if self.current.recognized_string == "default":
                 self.getToken()
                 if self.statements():
                     return True
+                else:
+                    Error(self, "default statement not found on forcase")
+            else:
+                Error(self, "default not found on forcase")
             return False
         return False
 
