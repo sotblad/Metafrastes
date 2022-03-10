@@ -267,9 +267,9 @@ class Syntax(object):
             self.declarations()
             #print("TELOS DECL", self.current)
             self.subprograms()
-            print("TELOS SAMP", self.current)
+         #   print("TELOS SAMP", self.current)
             self.blockstatements()
-            print("TELOS BLST", self.current)
+         #   print("TELOS BLST", self.current)
             if self.current.recognized_string == ".":
                 self.getPreviousToken()
             if self.current.recognized_string == "}":
@@ -365,9 +365,9 @@ class Syntax(object):
     def statement(self):
         if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return", "input", "print"] or self.current.family == "id":
             if self.current.recognized_string == "if":
-                print("MPAINEI IF", self.current)
+        #        print("MPAINEI IF", self.current)
                 self.ifStat()
-                print("VGAINEI IF", self.current)
+         #       print("VGAINEI IF", self.current)
             elif self.current.recognized_string == "while":
                 self.whileStat()
             elif self.current.recognized_string == "switchcase":
@@ -493,6 +493,8 @@ class Syntax(object):
                                 if(self.current.recognized_string == "default"):
                                     break
                                 self.getToken()
+                                if self.current.recognized_string != "case":
+                                    Error(self, "case not found.")
                                 continue
                             else:
                                 Error(self, "statements not found in case")
@@ -529,7 +531,11 @@ class Syntax(object):
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if self.statements():
+                                if (self.current.recognized_string == "default"):
+                                    break
                                 self.getToken()
+                                if self.current.recognized_string != "case":
+                                    Error(self, "case not found.")
                                 continue
                             else:
                                 Error(self, "statement not found on forcase")
