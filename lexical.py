@@ -265,11 +265,11 @@ class Syntax(object):
             self.getToken()
        #     print("arxi decla", self.current)
             self.declarations()
-          #  print("TELOS DECL", self.current)
+            #print("TELOS DECL", self.current)
             self.subprograms()
-        #    print("TELOS SAMP", self.current)
+            print("TELOS SAMP", self.current)
             self.blockstatements()
-        #    print("TELOS BLST", self.current)
+            print("TELOS BLST", self.current)
             if self.current.recognized_string == ".":
                 self.getPreviousToken()
             if self.current.recognized_string == "}":
@@ -285,6 +285,7 @@ class Syntax(object):
             self.getToken()
 
             self.varlist()
+
             if self.current.recognized_string != ";":
                 Error(self, "Error, end delimiter not found")
             self.getToken()
@@ -294,13 +295,13 @@ class Syntax(object):
         while self.current.family == "id":
             needNextId = False
             self.getToken()
-            if self.current.recognized_string in [",", ";"]:
-                if self.current.recognized_string == ",":
-                    needNextId = True
-                    self.getToken()
+            if self.current.recognized_string == ",":
+                needNextId = True
+                self.getToken()
             else:
                 needNextId = False
-                Error(self, "Error, delimiter not found on declaration")
+                if self.current.recognized_string != ";":
+                    Error(self, "Error, delimiter not found on declaration")
                 break
 
         if(needNextId == True):
@@ -309,12 +310,9 @@ class Syntax(object):
         return True
 
     def subprograms(self):
-        subBool = False
         while(self.subprogram()):
-            subBool = True
-            pass
-        if subBool:
             self.getToken()
+
 
     def subprogram(self):
         if self.current.recognized_string in ["function", "procedure"]:
@@ -344,6 +342,8 @@ class Syntax(object):
             if self.current.recognized_string == ",":
                 needNextItem = True
                 self.getToken()
+            if self.current.recognized_string == ")":
+                break
 
         if (needNextItem == True):
             Error(self, "Error, comma delimiter without next item")
@@ -357,6 +357,7 @@ class Syntax(object):
                 Error(self, "error, id not found in formalparitem")
                 return False
         else:
+            Error(self, "formalparitem not found")
             return False
 
         return True
@@ -364,7 +365,9 @@ class Syntax(object):
     def statement(self):
         if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return", "input", "print"] or self.current.family == "id":
             if self.current.recognized_string == "if":
+                print("MPAINEI IF", self.current)
                 self.ifStat()
+                print("VGAINEI IF", self.current)
             elif self.current.recognized_string == "while":
                 self.whileStat()
             elif self.current.recognized_string == "switchcase":
@@ -402,6 +405,10 @@ class Syntax(object):
             self.blockstatements()
             if self.current.recognized_string == "}":
                 return True
+            else:
+                Error(self, "no closing bracket found")
+                return False
+        Error(self, "invalid statements format")
         return False
 
     def assignStat(self):
@@ -438,8 +445,6 @@ class Syntax(object):
                     Error(self, "condition not found on ifStat")
             else:
                 Error(self, "starting parenthesis not found on ifStat")
-        else:
-            Error(self, "if not found on ifStat")
         return False
 
     def elsepart(self):
@@ -482,7 +487,6 @@ class Syntax(object):
                 if self.current.recognized_string == "(":
                     self.getToken()
                     if self.condition():
-                        print(self.current)
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if self.statements():
@@ -815,7 +819,7 @@ class Syntax(object):
             needNextStatement = False
             if(self.current != ";"):
                 self.getToken()
-            if self.current.recognized_string == ";":
+            while self.current.recognized_string == ";":
                 self.getToken()
                 needNextStatement = True
 
