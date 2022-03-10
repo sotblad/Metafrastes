@@ -380,7 +380,9 @@ class Syntax(object):
             elif self.current.recognized_string == "input":
                 self.inputStat()
             elif self.current.recognized_string == "print":
+           #     print("MPAINEI PR", self.current)
                 self.printStat()
+              #  print("VG PR", self.current)
             else:
                 self.assignStat()
 
@@ -479,19 +481,27 @@ class Syntax(object):
                 if self.current.recognized_string == "(":
                     self.getToken()
                     if self.condition():
+                        print(self.current)
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if self.statements():
+                                if(self.current.recognized_string == "default"):
+                                    break
                                 self.getToken()
                                 continue
                             else:
+                                Error(self, "statements not found in case")
                                 return False
                         else:
+                            Error(self, "closing parenthesis not found in case")
                             return False
                     else:
+                        Error(self, "condition not found in case")
                         return False
                 else:
+                    Error(self, "starting parenthesis not found in case")
                     return False
+
             if self.current.recognized_string == "default":
                 self.getToken()
                 if self.statements():
@@ -811,7 +821,7 @@ class Syntax(object):
                 self.getToken()
                 self.block()
                 self.getToken()
-                if self.current.recognized_string == ".":
+                if self.current.recognized_string == "." and not self.endFound:
                     self.getToken()
                     if self.endFound:
                         print("PARSED GGEZ")
