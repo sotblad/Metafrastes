@@ -1,5 +1,10 @@
+# Ektelestike me python3
+# Dimitrios Giannakopoulos, 4336, cse84336
+# Sotirios Panagiotou, 4456, cse84456
+
+# You can run the lexsyn analyzer using this format: python3 lexsyn.py PathOfCimple.ci
+
 import sys
-from collections import Counter
 import re
 
 keywords = ['program', 'declare', 'if', 'else', 'while', 'switchcase', 'forcase', 'incase', 'case', 'default', 'not',
@@ -57,12 +62,14 @@ class Error(object):
     def __init__(self, syntax, message):
         syntax.endFound = True
         print("Syntax error @ line " + str(syntax.current.line_number) + " with message: '" + str(message) + "'")
+        sys.exit()
 
 class LexError(object):
     def __init__(self, lex, message):
         lex.errFound = True
         lex.endFound = True
         print("Lexical error @ line " + str(lex.line-1) + " with message: '" + str(message) + "'")
+        sys.exit()
 
 class Lexer(object):
     def __init__(self, stream):
@@ -187,9 +194,6 @@ class Lexer(object):
 
         return False
 
-    def checkAllowed(self):
-        allowed = ["+", "-", "*", "/", "<", ">", ":", "=", ";", ",", "[", "]", "(", ")", "{", "}", ".", "#"]
-
     def checkWhite(self):
         while self.current == " " or self.current == '\t':
             self.getChar()
@@ -263,13 +267,9 @@ class Syntax(object):
     def block(self):
         if self.current.recognized_string == "{":
             self.getToken()
-       #     print("arxi decla", self.current)
             self.declarations()
-            #print("TELOS DECL", self.current)
             self.subprograms()
-         #   print("TELOS SAMP", self.current)
             self.blockstatements()
-         #   print("TELOS BLST", self.current)
             if self.current.recognized_string == ".":
                 self.getPreviousToken()
             if self.current.recognized_string == "}":
@@ -312,7 +312,6 @@ class Syntax(object):
     def subprograms(self):
         while(self.subprogram()):
             self.getToken()
-
 
     def subprogram(self):
         if self.current.recognized_string in ["function", "procedure"]:
@@ -365,9 +364,7 @@ class Syntax(object):
     def statement(self):
         if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return", "input", "print"] or self.current.family == "id":
             if self.current.recognized_string == "if":
-        #        print("MPAINEI IF", self.current)
                 self.ifStat()
-         #       print("VGAINEI IF", self.current)
             elif self.current.recognized_string == "while":
                 self.whileStat()
             elif self.current.recognized_string == "switchcase":
@@ -384,9 +381,7 @@ class Syntax(object):
             elif self.current.recognized_string == "input":
                 self.inputStat()
             elif self.current.recognized_string == "print":
-           #     print("MPAINEI PR", self.current)
                 self.printStat()
-              #  print("VG PR", self.current)
             else:
                 self.assignStat()
 
@@ -395,6 +390,8 @@ class Syntax(object):
 
     def statements(self):
         while self.statement():
+            if self.current.recognized_string in keywords:
+                return True
             self.getToken()
 
             if self.current.recognized_string == ";":
@@ -492,7 +489,6 @@ class Syntax(object):
                             if self.statements():
                                 if(self.current.recognized_string == "default"):
                                     break
-                                self.getToken()
                                 if self.current.recognized_string != "case":
                                     Error(self, "case not found.")
                                 continue
@@ -531,9 +527,9 @@ class Syntax(object):
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if self.statements():
+                                self.getToken()
                                 if (self.current.recognized_string == "default"):
                                     break
-                                self.getToken()
                                 if self.current.recognized_string != "case":
                                     Error(self, "case not found.")
                                 continue
@@ -573,12 +569,16 @@ class Syntax(object):
                             if self.statements():
                                 continue
                             else:
+                                Error(self, "statements not found on incase")
                                 return False
                         else:
+                            Error(self, "closing parenthesis not found on incase")
                             return False
                     else:
+                        Error(self, "condition not found on incase")
                         return False
                 else:
+                    Error(self, "starting parenthesis not found on incase")
                     return False
             return True
         return False
@@ -707,20 +707,25 @@ class Syntax(object):
                 if self.boolterm():
                     self.getToken()
                     return True
+                else:
+                    Error(self, "boolterm not found")
                 return False
             return True
+        Error(self, "boolterm not found")
         return False
 
     def boolterm(self):
         if self.boolfactor():
-        #    self.getToken()
             while self.current.recognized_string == "and":
                 self.getToken()
                 if self.boolfactor():
                     self.getToken()
                     return True
+                else:
+                    Error(self, "boolfactor not found")
                 return False
             return True
+        Error(self, "boolfactor not found")
         return False
 
 
@@ -729,14 +734,16 @@ class Syntax(object):
             self.getToken()
             if self.current.recognized_string == "[":
                 self.getToken()
-                self.condition()
+                if not self.condition():
+                    Error(self, "condition not found")
                 self.getToken()
                 if self.current.recognized_string == "]":
                     return True
             return False
         elif self.current.recognized_string == "[":
             self.getToken()
-            self.condition()
+            if not self.condition():
+                Error(self, "condition not found")
             self.getToken()
             if self.current.recognized_string == "]":
                 return True
@@ -759,10 +766,13 @@ class Syntax(object):
                 while self.current.recognized_string in addOperator:
                     self.getToken()
                     if self.term():
-                      #  self.getToken()
                         return True
+                    else:
+                        Error(self, "term not found")
                     return False
                 return True
+            else:
+                Error(self, "term not found")
         return False
 
     def term(self):
@@ -773,8 +783,11 @@ class Syntax(object):
                 if self.factor():
                     self.getToken()
                     return True
+                else:
+                    Error(self, "factor not found")
                 return False
             return True
+        Error(self, "factor not found")
         return False
 
     def factor(self):
@@ -797,18 +810,18 @@ class Syntax(object):
             return True
         return False
 
-
-
     def idtail(self):
         if self.current.recognized_string == "(":
             self.getToken()
 
-            self.actualparlist()
+            if not self.actualparlist():
+                Error(self, "actualparlist not found")
             self.getToken()
-            if self.current.recognized_string != ")":
+            while self.current.recognized_string != ")":
                 self.getPreviousToken()
             if self.current.recognized_string == ")":
                 return True
+            Error(self, "closing parenthesis not found")
             return False
         return True
 
@@ -843,7 +856,7 @@ class Syntax(object):
                 if self.current.recognized_string == "." and not self.endFound:
                     self.getToken()
                     if self.endFound:
-                        print("PARSED GGEZ")
+                        print("The cimple program got parsed successfully")
                 else:
                     Error(self, "ERROR, ending character not found")
             else:
