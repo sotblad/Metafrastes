@@ -47,7 +47,77 @@ for i in complex:
     counter += 1
 allComplex = [item for sublist in dictComplex.values() for item in sublist]
 
-allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";", ",", ":", "[", "]", "(", ")", "{", "}", ".", "#", "\t", " ", "\n"]
+allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";", ",", ":", "[", "]", "(", ")", "{",
+                   "}", ".", "#", "\t", " ", "\n"]
+
+
+idCount = 100
+tempCount = 1
+quads = []
+
+class Quad(object):
+    def __init__(self, operator, operand1, operand2, target):
+        global idCount
+        self.idCount = idCount
+        self.operator = operator
+        self.operand1 = operand1
+        self.operand2 = operand2
+        self.target = target
+        idCount +=1
+        quads.append(self)
+
+    def changeTarget(self, label):
+        self.target = label
+
+    def __str__(self):
+        return "{4}: {0}, {1}, {2}, {3}".format(self.operator, self.operand1, self.operand2, self.target, self.idCount)
+
+
+def genQuad(operator, operand1, operand2, operand3):
+    return Quad(operator, operand1, operand2, operand3)
+
+def nextQuad():
+    return idCount
+
+def newTemp():
+    global tempCount
+    temp = "T_" + str(tempCount)
+    tempCount += 1
+    return temp
+
+def emptyList():
+    return []
+
+def makeList(label):
+    return [label]
+
+def mergeList(list1, list2):
+    newList = list1+list2
+    return newList
+
+def backpatch(list, label):
+    for i in list:
+        for j in quads:
+            if j.idCount == i:
+                j.target = label
+
+x1 = makeList(nextQuad())
+genQuad('jump', '_', '_', '_')
+genQuad('+', 'a', '1', 'a')
+print(len(quads))
+x2 = makeList(nextQuad())
+genQuad('jump', '_', '_', '_')
+x = mergeList(x1, x2)
+genQuad('+', 'a', '2', 'a')
+backpatch(x, nextQuad())
+print(x)
+for j in quads:
+    print(j)
+print(newTemp())
+print(newTemp())
+print(newTemp())
+
+
 
 class Token(object):
     def __init__(self, recognized_string, family, line_number):
@@ -58,18 +128,21 @@ class Token(object):
     def __str__(self):
         return '{0}\tfamily:"{1}", line: {2}'.format(self.recognized_string, self.family, self.line_number)
 
+
 class Error(object):
     def __init__(self, syntax, message):
         syntax.endFound = True
         print("Syntax error @ line " + str(syntax.current.line_number) + " with message: '" + str(message) + "'")
         sys.exit()
 
+
 class LexError(object):
     def __init__(self, lex, message):
         lex.errFound = True
         lex.endFound = True
-        print("Lexical error @ line " + str(lex.line-1) + " with message: '" + str(message) + "'")
+        print("Lexical error @ line " + str(lex.line - 1) + " with message: '" + str(message) + "'")
         sys.exit()
+
 
 class Lexer(object):
     def __init__(self, stream):
@@ -123,26 +196,26 @@ class Lexer(object):
             if self.current in dict[i]:
                 if (self.current in complexCase):
                     checkAssign = False
-                    if(self.current == ":"):
+                    if (self.current == ":"):
                         checkAssign = True
                     temp = self.getChar()
-                    if(checkAssign):
+                    if (checkAssign):
                         if self.current != "=":
                             LexError(self, "Assignment not found")
                             checkAssign = False
                     getChar = self.getChar()
                     concat = str(temp) + str(getChar)
                     if (concat in allComplex):
-                        if(concat == ":="):
+                        if (concat == ":="):
                             i = "assignment"
                         return Token(concat, i, self.line)
                     else:
                         self.getPreviousChar()
                         return Token(temp, i, self.line)
-                if(self.current == "."):
+                if (self.current == "."):
                     self.endFound = True
                     return Token(self.current, i, self.line)
-                if(self.current == "}"):
+                if (self.current == "}"):
                     getChar = self.getChar()
                     if getChar == None:
                         self.endFound = True
@@ -164,7 +237,6 @@ class Lexer(object):
                     break
             num = ''.join(tmp)
             if (self.checkRegex(number, num)):
-
                 return Token(num, "number", self.line)
 
         if self.current.isalpha():
@@ -234,6 +306,7 @@ class Lexer(object):
 
         return result
 
+
 class Syntax(object):
     def __init__(self, stream):
         self.stream = stream
@@ -293,6 +366,7 @@ class Syntax(object):
     def varlist(self):
         needNextId = False
         while self.current.family == "id":
+            genQuad("par", self.current.recognized_string, "CV", "_")
             needNextId = False
             self.getToken()
             if self.current.recognized_string == ",":
@@ -304,17 +378,18 @@ class Syntax(object):
                     Error(self, "Error, delimiter not found on declaration")
                 break
 
-        if(needNextId == True):
+        if (needNextId == True):
             Error(self, "Error, comma delimiter without next id")
 
         return True
 
     def subprograms(self):
-        while(self.subprogram()):
+        while (self.subprogram()):
             self.getToken()
 
     def subprogram(self):
         if self.current.recognized_string in ["function", "procedure"]:
+            genQuad("begin_block", self.current.recognized_string, "_", "_")
             self.getToken()
             if self.current.family == "id":
                 self.getToken()
@@ -324,6 +399,7 @@ class Syntax(object):
                     if self.current.recognized_string == ")":
                         self.getToken()
                         self.block()
+                        genQuad("end_block", self.current.recognized_string, "_", "_")
                         return True
                     else:
                         Error(self, "subprogram ending parenthesis error")
@@ -362,7 +438,8 @@ class Syntax(object):
         return True
 
     def statement(self):
-        if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return", "input", "print"] or self.current.family == "id":
+        if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return",
+                                              "input", "print"] or self.current.family == "id":
             if self.current.recognized_string == "if":
                 self.ifStat()
             elif self.current.recognized_string == "while":
@@ -410,9 +487,11 @@ class Syntax(object):
 
     def assignStat(self):
         if self.current.family == "id":
+            target = self.current.recognized_string
             self.getToken()
             if self.current.recognized_string == ":=":
                 self.getToken()
+                genQuad(":=", self.current.recognized_string, "_", target)
                 if self.expression():
                     return True
                 else:
@@ -487,7 +566,7 @@ class Syntax(object):
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if self.statements():
-                                if(self.current.recognized_string == "default"):
+                                if (self.current.recognized_string == "default"):
                                     break
                                 if self.current.recognized_string != "case":
                                     Error(self, "case not found.")
@@ -583,8 +662,6 @@ class Syntax(object):
             return True
         return False
 
-
-
     def returnStat(self):
         if self.current.recognized_string == "return":
             self.getToken()
@@ -596,7 +673,7 @@ class Syntax(object):
                         return True
                     else:
                         self.getPreviousToken()
-                        if(self.current.recognized_string == ")"):
+                        if (self.current.recognized_string == ")"):
                             return True
                         self.getToken()
                         Error(self, "closing parenthesis not found on returnStat")
@@ -612,12 +689,14 @@ class Syntax(object):
         if self.current.recognized_string == "call":
             self.getToken()
             if self.current.family == "id":
+                name = self.current.recognized_string
                 self.getToken()
                 if self.current.recognized_string == "(":
                     self.getToken()
                     if self.actualparlist():
                         self.getToken()
                         if self.current.recognized_string == ")":
+                            genQuad("call", name, "_", "_")
                             return True
                         else:
                             Error(self, "closing parenthesis not found on callStat")
@@ -633,6 +712,7 @@ class Syntax(object):
 
     def printStat(self):
         if self.current.recognized_string == "print":
+            genQuad("out", "_", "_", "_")
             self.getToken()
             if self.current.recognized_string == "(":
                 self.getToken()
@@ -652,6 +732,7 @@ class Syntax(object):
 
     def inputStat(self):
         if self.current.recognized_string == "input":
+            genQuad("in", "_", "_", "_")
             self.getToken()
             if self.current.recognized_string == "(":
                 self.getToken()
@@ -701,7 +782,7 @@ class Syntax(object):
 
     def condition(self):
         if self.boolterm():
-          #  self.getToken()
+            #  self.getToken()
             while self.current.recognized_string == "or":
                 self.getToken()
                 if self.boolterm():
@@ -728,7 +809,6 @@ class Syntax(object):
         Error(self, "boolfactor not found")
         return False
 
-
     def boolfactor(self):
         if self.current.recognized_string == "not":
             self.getToken()
@@ -754,11 +834,11 @@ class Syntax(object):
             if self.current.recognized_string in REL_OP:
                 self.getToken()
                 if self.expression():
+
                     self.getPreviousToken()
                     return True
             return False
         return False
-
 
     def expression(self):
         if self.optionalSign():
@@ -836,13 +916,13 @@ class Syntax(object):
             self.getToken()
         while self.statement():
             needNextStatement = False
-            if(self.current != ";"):
+            if (self.current != ";"):
                 self.getToken()
             while self.current.recognized_string == ";":
                 self.getToken()
                 needNextStatement = True
 
-        if(needNextStatement):
+        if (needNextStatement):
             if self.current.recognized_string != "}":
                 Error(self, "Error, no next statement found after delimiter")
 
@@ -850,12 +930,15 @@ class Syntax(object):
         if self.current.recognized_string == "program":
             self.getToken()
             if self.current.family == "id":
+                genQuad("begin_block", self.current.recognized_string, "_", "_")
                 self.getToken()
                 self.block()
                 self.getToken()
                 if self.current.recognized_string == "." and not self.endFound:
                     self.getToken()
                     if self.endFound:
+                        genQuad("halt", "_", "_", "_")
+                        genQuad("end_block", self.current.recognized_string, "_", "_")
                         print("The cimple program got parsed successfully")
                 else:
                     Error(self, "ERROR, ending character not found")
@@ -864,6 +947,7 @@ class Syntax(object):
         else:
             Error(self, "ERROR, program not found")
 
+
 def main(argv):
     form = argv
 
@@ -871,12 +955,12 @@ def main(argv):
         lex = Lexer(form)
         token = lex.nextToken()
         while token is not None and not lex.endFound:
-           # print(token)
+            # print(token)
             lex.checkValidation(token)
             lex.tokenList.append(token)
             token = lex.nextToken()
         if lex.current == ".":
-          #  print(token)
+            #  print(token)
             lex.checkValidation(token)
             lex.tokenList.append(token)
 
@@ -894,3 +978,4 @@ if __name__ == "__main__":
     f = open(sys.argv[1:][0], "r")
 
     main(f.read())
+
