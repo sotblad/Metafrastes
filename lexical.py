@@ -101,21 +101,21 @@ def backpatch(list, label):
             if j.idCount == i:
                 j.target = label
 
-x1 = makeList(nextQuad())
-genQuad('jump', '_', '_', '_')
-genQuad('+', 'a', '1', 'a')
-print(len(quads))
-x2 = makeList(nextQuad())
-genQuad('jump', '_', '_', '_')
-x = mergeList(x1, x2)
-genQuad('+', 'a', '2', 'a')
-backpatch(x, nextQuad())
-print(x)
-for j in quads:
-    print(j)
-print(newTemp())
-print(newTemp())
-print(newTemp())
+# x1 = makeList(nextQuad())
+# genQuad('jump', '_', '_', '_')
+# genQuad('+', 'a', '1', 'a')
+# print(len(quads))
+# x2 = makeList(nextQuad())
+# genQuad('jump', '_', '_', '_')
+# x = mergeList(x1, x2)
+# genQuad('+', 'a', '2', 'a')
+# backpatch(x, nextQuad())
+# print(x)
+# for j in quads:
+#     print(j)
+# print(newTemp())
+# print(newTemp())
+# print(newTemp())
 
 
 
@@ -366,7 +366,6 @@ class Syntax(object):
     def varlist(self):
         needNextId = False
         while self.current.family == "id":
-            genQuad("par", self.current.recognized_string, "CV", "_")
             needNextId = False
             self.getToken()
             if self.current.recognized_string == ",":
@@ -389,8 +388,9 @@ class Syntax(object):
 
     def subprogram(self):
         if self.current.recognized_string in ["function", "procedure"]:
-            genQuad("begin_block", self.current.recognized_string, "_", "_")
             self.getToken()
+            blockName = self.current.recognized_string
+            genQuad("begin_block", blockName, "_", "_")
             if self.current.family == "id":
                 self.getToken()
                 if self.current.recognized_string == "(":
@@ -399,7 +399,7 @@ class Syntax(object):
                     if self.current.recognized_string == ")":
                         self.getToken()
                         self.block()
-                        genQuad("end_block", self.current.recognized_string, "_", "_")
+                        genQuad("end_block", blockName, "_", "_")
                         return True
                     else:
                         Error(self, "subprogram ending parenthesis error")
@@ -667,9 +667,10 @@ class Syntax(object):
             self.getToken()
             if self.current.recognized_string == "(":
                 self.getToken()
+                returnName = self.current.recognized_string
                 if self.expression():
-
                     if self.current.recognized_string == ")":
+                        genQuad("RET", returnName, "_", "_")
                         return True
                     else:
                         self.getPreviousToken()
@@ -696,6 +697,7 @@ class Syntax(object):
                     if self.actualparlist():
                         self.getToken()
                         if self.current.recognized_string == ")":
+                            genQuad("par", newTemp() , "RET", "_")
                             genQuad("call", name, "_", "_")
                             return True
                         else:
@@ -712,10 +714,10 @@ class Syntax(object):
 
     def printStat(self):
         if self.current.recognized_string == "print":
-            genQuad("out", "_", "_", "_")
             self.getToken()
             if self.current.recognized_string == "(":
                 self.getToken()
+                genQuad("out", self.current.recognized_string, "_", "_")
                 if self.expression():
                     self.getPreviousToken()
                     if self.current.recognized_string == ")":
@@ -732,10 +734,10 @@ class Syntax(object):
 
     def inputStat(self):
         if self.current.recognized_string == "input":
-            genQuad("in", "_", "_", "_")
             self.getToken()
             if self.current.recognized_string == "(":
                 self.getToken()
+                genQuad("in", self.current.recognized_string, "_", "_")
                 if self.current.family == "id":
                     self.getToken()
                     if self.current.recognized_string == ")":
@@ -768,6 +770,7 @@ class Syntax(object):
         while self.current.recognized_string in ["in", "inout"]:
             if self.current.recognized_string == "in":
                 self.getToken()
+                genQuad("par", self.current.recognized_string, "CV", "_")
                 if not self.expression():
                     Error(self, "error, expression not found in actualparitem")
                     return False
@@ -775,6 +778,7 @@ class Syntax(object):
                 if self.current.family != "id":
                     Error(self, "error, id not found in actualparitem")
                     return False
+                genQuad("par", self.current.recognized_string, "REF", "_")
         else:
             return False
 
@@ -840,11 +844,22 @@ class Syntax(object):
             return False
         return False
 
+
+
     def expression(self):
+        templist = []
         if self.optionalSign():
+            temp1 = self.current.recognized_string
             if self.term():
                 while self.current.recognized_string in addOperator:
+                    op = self.current.recognized_string
                     self.getToken()
+                    temp2 = self.current.recognized_string
+                    if len(templist) != 0:
+                        temp1 = templist.pop()
+                    temp3 = newTemp()
+                    templist.append(temp3)
+                    genQuad(op, temp1, temp2, temp3)
                     if self.term():
                         return True
                     else:
@@ -930,7 +945,8 @@ class Syntax(object):
         if self.current.recognized_string == "program":
             self.getToken()
             if self.current.family == "id":
-                genQuad("begin_block", self.current.recognized_string, "_", "_")
+                programName = self.current.recognized_string
+                genQuad("begin_block", programName, "_", "_")
                 self.getToken()
                 self.block()
                 self.getToken()
@@ -938,7 +954,7 @@ class Syntax(object):
                     self.getToken()
                     if self.endFound:
                         genQuad("halt", "_", "_", "_")
-                        genQuad("end_block", self.current.recognized_string, "_", "_")
+                        genQuad("end_block", programName, "_", "_")
                         print("The cimple program got parsed successfully")
                 else:
                     Error(self, "ERROR, ending character not found")
@@ -969,6 +985,9 @@ def main(argv):
             syntax = Syntax(lex.tokenList)
             token = syntax.getToken()
             sntx = syntax.program()
+            for i in quads:
+                print(i)
+
     else:
         print('Invalid parameters.')
         sys.exit(1)
