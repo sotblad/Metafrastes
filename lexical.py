@@ -343,8 +343,6 @@ class Syntax(object):
             self.declarations()
             self.subprograms()
             self.blockstatements()
-            if self.current.recognized_string == ".":
-                self.getPreviousToken()
             if self.current.recognized_string == "}":
                 return True
             else:
@@ -356,7 +354,7 @@ class Syntax(object):
     def declarations(self):
         while self.current.recognized_string == "declare":
             self.getToken()
-
+            
             self.varlist()
 
             if self.current.recognized_string != ";":
@@ -365,7 +363,9 @@ class Syntax(object):
 
     def varlist(self):
         needNextId = False
+        ok = 0
         while self.current.family == "id":
+            ok = 1
             needNextId = False
             self.getToken()
             if self.current.recognized_string == ",":
@@ -380,7 +380,8 @@ class Syntax(object):
         if (needNextId == True):
             Error(self, "Error, comma delimiter without next id")
 
-        return True
+        if(ok == 1):
+            return True
 
     def subprograms(self):
         while (self.subprogram()):
@@ -395,14 +396,18 @@ class Syntax(object):
                 self.getToken()
                 if self.current.recognized_string == "(":
                     self.getToken()
-                    self.formalparlist()
-                    if self.current.recognized_string == ")":
-                        self.getToken()
-                        self.block()
-                        genQuad("end_block", blockName, "_", "_")
-                        return True
+                    if(self.formalparlist()):
+                        if self.current.recognized_string == ")":
+                            self.getToken()
+                            if(self.block()):
+                                genQuad("end_block", blockName, "_", "_")
+                                return True
+                            else:
+                                Error(self, "block not found on subprogram")
+                        else:
+                            Error(self, "subprogram ending parenthesis error")
                     else:
-                        Error(self, "subprogram ending parenthesis error")
+                        Error(self, "subprogram params not found")
                 else:
                     Error(self, "subprogram starting parenthesis error")
             else:
@@ -411,7 +416,9 @@ class Syntax(object):
 
     def formalparlist(self):
         needNextItem = False
+        ok = 0
         while self.formalparitem():
+            ok = 1
             needNextItem = False
             self.getToken()
             if self.current.recognized_string == ",":
@@ -422,67 +429,82 @@ class Syntax(object):
 
         if (needNextItem == True):
             Error(self, "Error, comma delimiter without next item")
-
-        return True
+            return False
+            
+        if(ok == 1):
+            return True
 
     def formalparitem(self):
         if self.current.recognized_string in ["in", "inout"]:
             self.getToken()
-            if self.current.family != "id":
+            if self.current.family == "id":
+                return True
+            else:
                 Error(self, "error, id not found in formalparitem")
                 return False
         else:
             Error(self, "formalparitem not found")
             return False
-
-        return True
-
-    def statement(self):
-        if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return",
-                                              "input", "print"] or self.current.family == "id":
-            if self.current.recognized_string == "if":
-                self.ifStat()
-            elif self.current.recognized_string == "while":
-                self.whileStat()
-            elif self.current.recognized_string == "switchcase":
-                self.switchcaseStat()
-            elif self.current.recognized_string == "forcase":
-                self.forcaseStat()
-                self.getPreviousToken()
-            elif self.current.recognized_string == "incase":
-                self.incaseStat()
-            elif self.current.recognized_string == "call":
-                self.callStat()
-            elif self.current.recognized_string == "return":
-                self.returnStat()
-            elif self.current.recognized_string == "input":
-                self.inputStat()
-            elif self.current.recognized_string == "print":
-                self.printStat()
+            
+    def statements(self):
+        if(self.statement()):
+            self.getToken()
+            if self.current.recognized_string == ";":
+                return True
             else:
-                self.assignStat()
-
-            return True
+                Error(self, "statement error")
+                return False
+        else:
+            if self.current.recognized_string == "{":
+                self.getToken()
+                self.blockstatements()
+                if self.current.recognized_string == "}":
+                    return True
+                else:
+                    Error(self, "no closing bracket found")
+                    return False
+                
+        Error(self, "invalid statements format")
         return False
 
-    def statements(self):
-        while self.statement():
-            if self.current.recognized_string in keywords:
-                return True
-            self.getToken()
-
-            if self.current.recognized_string == ";":
-                self.getToken()
-            return True
-        if self.current.recognized_string == "{":
-            self.getToken()
-            self.blockstatements()
-            if self.current.recognized_string == "}":
-                return True
+    def statement(self):
+        ok = 0
+        if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return",
+                                              "input", "print"] or self.current.family == "id":
+            ok = 1
+            if self.current.recognized_string == "if":
+                if(not self.ifStat()):
+                    ok = -1
+            elif self.current.recognized_string == "while":
+                if(not self.whileStat()):
+                    ok = -1
+            elif self.current.recognized_string == "switchcase":
+                if(not self.switchcaseStat()):
+                    ok = -1
+            elif self.current.recognized_string == "forcase":
+                if(not self.forcaseStat()):
+                    ok = -1
+            elif self.current.recognized_string == "incase":
+                if(not self.incaseStat()):
+                    ok = -1
+            elif self.current.recognized_string == "call":
+                if(not self.callStat()):
+                    ok = -1
+            elif self.current.recognized_string == "return":
+                if(not self.returnStat()):
+                    ok = -1
+            elif self.current.recognized_string == "input":
+                if(not self.inputStat()):
+                    ok = -1
+            elif self.current.recognized_string == "print":
+                if(not self.printStat()):
+                    ok = -1
             else:
-                Error(self, "no closing bracket found")
-                return False
-        Error(self, "invalid statements format")
+                if(not self.assignStat()):
+                    ok = -1
+
+            if(ok in [0,1]):
+                return True
         return False
 
     def assignStat(self):
@@ -508,11 +530,16 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
+               #     self.getToken()
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
+                            if(self.stream[self.offset+1].recognized_string == "else"):
+                                self.getToken()
                             if self.elsepart():
                                 return True
+                            else:
+                                Error(self, "elsepart not found")
                         else:
                             Error(self, "statement not found on ifStat")
                     else:
@@ -531,7 +558,8 @@ class Syntax(object):
             else:
                 Error(self, "statement not found on elsePart")
             return False
-        return True
+        else:
+            return True
 
     def whileStat(self):
         if self.current.recognized_string == "while":
@@ -558,31 +586,34 @@ class Syntax(object):
     def switchcaseStat(self):
         if self.current.recognized_string == "switchcase":
             self.getToken()
-            while self.current.recognized_string == "case":
-                self.getToken()
-                if self.current.recognized_string == "(":
+            if(self.current.recognized_string == "case"):
+                while self.current.recognized_string == "case":
                     self.getToken()
-                    if self.condition():
-                        if self.current.recognized_string == ")":
-                            self.getToken()
-                            if self.statements():
-                                if (self.current.recognized_string == "default"):
-                                    break
-                                if self.current.recognized_string != "case":
-                                    Error(self, "case not found.")
-                                continue
+                    if self.current.recognized_string == "(":
+                        self.getToken()
+                        if self.condition():
+                            if self.current.recognized_string == ")":
+                                self.getToken()
+                                if self.statements():
+                                    if (self.current.recognized_string == "default"):
+                                        break
+                                    if(self.current.recognized_string == "}"):
+                                        self.getToken()
+                                #    if self.current.recognized_string != "case":
+                            #            Error(self, "case not found.")
+                             #       continue
+                                else:
+                                    Error(self, "statements not found in case")
+                                    return False
                             else:
-                                Error(self, "statements not found in case")
+                                Error(self, "closing parenthesis not found in case")
                                 return False
                         else:
-                            Error(self, "closing parenthesis not found in case")
+                            Error(self, "condition not found in case")
                             return False
                     else:
-                        Error(self, "condition not found in case")
+                        Error(self, "starting parenthesis not found in case")
                         return False
-                else:
-                    Error(self, "starting parenthesis not found in case")
-                    return False
 
             if self.current.recognized_string == "default":
                 self.getToken()
@@ -598,38 +629,41 @@ class Syntax(object):
     def forcaseStat(self):
         if self.current.recognized_string == "forcase":
             self.getToken()
-            while self.current.recognized_string == "case":
-                self.getToken()
-                if self.current.recognized_string == "(":
+            if(self.current.recognized_string == "case"):
+                while self.current.recognized_string == "case":
                     self.getToken()
-                    if self.condition():
-                        if self.current.recognized_string == ")":
-                            self.getToken()
-                            if self.statements():
+                    if self.current.recognized_string == "(":
+                        self.getToken()
+                        if self.condition():
+                            if self.current.recognized_string == ")":
                                 self.getToken()
-                                if (self.current.recognized_string == "default"):
-                                    break
-                                if self.current.recognized_string != "case":
-                                    Error(self, "case not found.")
-                                continue
+                                if self.statements():
+                                    if (self.current.recognized_string == "default"):
+                                        break
+                                    if(self.current.recognized_string == "}"):
+                                        self.getToken()
+                                #    if self.current.recognized_string != "case":
+                            #            Error(self, "case not found.")
+                             #       continue
+                                else:
+                                    Error(self, "statements not found in case")
+                                    return False
                             else:
-                                Error(self, "statement not found on forcase")
+                                Error(self, "closing parenthesis not found in case")
                                 return False
                         else:
-                            Error(self, "closing parenthesis not found on forcase")
+                            Error(self, "condition not found in case")
                             return False
                     else:
-                        Error(self, "condition not found on forcase")
+                        Error(self, "starting parenthesis not found in case")
                         return False
-                else:
-                    Error(self, "starting parenthesis not found on forcase")
-                    return False
+
             if self.current.recognized_string == "default":
                 self.getToken()
                 if self.statements():
                     return True
                 else:
-                    Error(self, "default statement not found on forcase")
+                    Error(self, "statements not found on default forcase")
             else:
                 Error(self, "default not found on forcase")
             return False
@@ -638,29 +672,36 @@ class Syntax(object):
     def incaseStat(self):
         if self.current.recognized_string == "incase":
             self.getToken()
-            while self.current.recognized_string == "case":
-                self.getToken()
-                if self.current.recognized_string == "(":
+            if(self.current.recognized_string == "case"):
+                while self.current.recognized_string == "case":
                     self.getToken()
-                    if self.condition():
-                        if self.current.recognized_string == ")":
-                            self.getToken()
-                            if self.statements():
-                                continue
+                    if self.current.recognized_string == "(":
+                        self.getToken()
+                        if self.condition():
+                            if self.current.recognized_string == ")":
+                                self.getToken()
+                                if self.statements():
+                                    if (self.current.recognized_string == "default"):
+                                        break
+                                    if(self.current.recognized_string == "}"):
+                                        self.getToken()
+                                #    if self.current.recognized_string != "case":
+                            #            Error(self, "case not found.")
+                             #       continue
+                                else:
+                                    Error(self, "statements not found in case")
+                                    return False
                             else:
-                                Error(self, "statements not found on incase")
+                                Error(self, "closing parenthesis not found in case")
                                 return False
                         else:
-                            Error(self, "closing parenthesis not found on incase")
+                            Error(self, "condition not found in case")
                             return False
                     else:
-                        Error(self, "condition not found on incase")
+                        Error(self, "starting parenthesis not found in case")
                         return False
-                else:
-                    Error(self, "starting parenthesis not found on incase")
-                    return False
-            return True
-        return False
+            else:
+                return True
 
     def returnStat(self):
         if self.current.recognized_string == "return":
@@ -673,10 +714,6 @@ class Syntax(object):
                         genQuad("RET", returnName, "_", "_")
                         return True
                     else:
-                        self.getPreviousToken()
-                        if (self.current.recognized_string == ")"):
-                            return True
-                        self.getToken()
                         Error(self, "closing parenthesis not found on returnStat")
                 else:
                     Error(self, "expression not found on returnStat")
@@ -695,7 +732,6 @@ class Syntax(object):
                 if self.current.recognized_string == "(":
                     self.getToken()
                     if self.actualparlist():
-                        self.getToken()
                         if self.current.recognized_string == ")":
                             genQuad("par", newTemp() , "RET", "_")
                             genQuad("call", name, "_", "_")
@@ -719,7 +755,6 @@ class Syntax(object):
                 self.getToken()
                 genQuad("out", self.current.recognized_string, "_", "_")
                 if self.expression():
-                    self.getPreviousToken()
                     if self.current.recognized_string == ")":
                         return True
                     else:
@@ -756,7 +791,7 @@ class Syntax(object):
         needNextItem = False
         while self.actualparitem():
             needNextItem = False
-            self.getToken()
+        #    self.getToken()
             if self.current.recognized_string == ",":
                 needNextItem = True
                 self.getToken()
@@ -767,49 +802,57 @@ class Syntax(object):
         return True
 
     def actualparitem(self):
-        while self.current.recognized_string in ["in", "inout"]:
+        if self.current.recognized_string in ["in", "inout"]:
             if self.current.recognized_string == "in":
                 self.getToken()
                 genQuad("par", self.current.recognized_string, "CV", "_")
-                if not self.expression():
+                if self.expression():
+                    return True
+                else:
                     Error(self, "error, expression not found in actualparitem")
                     return False
             else:
-                if self.current.family != "id":
+                if self.current.family == "id":
+                    return True
+                else:
                     Error(self, "error, id not found in actualparitem")
                     return False
                 genQuad("par", self.current.recognized_string, "REF", "_")
         else:
+            Error(self, "empty actualparitem")
             return False
 
-        return True
-
     def condition(self):
+        ok = 1
         if self.boolterm():
-            #  self.getToken()
-            while self.current.recognized_string == "or":
-                self.getToken()
-                if self.boolterm():
+            if(self.current.recognized_string == "or"):
+                while self.current.recognized_string == "or":
                     self.getToken()
-                    return True
-                else:
-                    Error(self, "boolterm not found")
-                return False
-            return True
+                    if self.boolterm():
+                        continue
+                    else:
+                        ok = -1
+                        Error(self, "boolterm not found")
+                        break
+            if(ok == 1):
+                return True
         Error(self, "boolterm not found")
         return False
 
     def boolterm(self):
+        ok = 1
         if self.boolfactor():
-            while self.current.recognized_string == "and":
-                self.getToken()
-                if self.boolfactor():
+            if(self.current.recognized_string == "and"):
+                while self.current.recognized_string == "and":
                     self.getToken()
-                    return True
-                else:
-                    Error(self, "boolfactor not found")
-                return False
-            return True
+                    if self.boolfactor():
+                        continue
+                    else:
+                        ok = -1
+                        Error(self, "boolfactor not found")
+                        break
+            if(ok == 1):
+                return True
         Error(self, "boolfactor not found")
         return False
 
@@ -818,29 +861,37 @@ class Syntax(object):
             self.getToken()
             if self.current.recognized_string == "[":
                 self.getToken()
-                if not self.condition():
+                if self.condition():
+                    if self.current.recognized_string == "]":
+                        return True
+                    else:
+                        Error(self, "closing arr not found")
+                else:
                     Error(self, "condition not found")
-                self.getToken()
-                if self.current.recognized_string == "]":
-                    return True
             return False
         elif self.current.recognized_string == "[":
             self.getToken()
-            if not self.condition():
+            if self.condition():
+                if self.current.recognized_string == "]":
+                    return True
+                else:
+                    Error(self, "closing arr not found")
+            else:
                 Error(self, "condition not found")
-            self.getToken()
-            if self.current.recognized_string == "]":
-                return True
             return False
         elif self.expression():
-            if self.current.recognized_string not in REL_OP:
-                self.getPreviousToken()
+        
+        ### TODO
             if self.current.recognized_string in REL_OP:
                 self.getToken()
                 if self.expression():
-
-                    self.getPreviousToken()
+                    if(self.stream[self.offset+1].recognized_string not in keywords and self.stream[self.offset+1].family != "id"):
+                        self.getToken()
                     return True
+                else:
+                     Error(self, "relop err")
+            else:
+                Error(self, "relop err")
             return False
         return False
 
@@ -851,71 +902,74 @@ class Syntax(object):
         if self.optionalSign():
             temp1 = self.current.recognized_string
             if self.term():
-                while self.current.recognized_string in addOperator:
-                    op = self.current.recognized_string
-                    self.getToken()
-                    temp2 = self.current.recognized_string
-                    if len(templist) != 0:
-                        temp1 = templist.pop()
-                    temp3 = newTemp()
-                    templist.append(temp3)
-                    genQuad(op, temp1, temp2, temp3)
-                    if self.term():
-                        return True
-                    else:
-                        Error(self, "term not found")
-                    return False
+                if self.current.recognized_string in addOperator:
+                    while self.current.recognized_string in addOperator:
+                        op = self.current.recognized_string
+                        self.getToken()
+                        temp2 = self.current.recognized_string
+                        if len(templist) != 0:
+                            temp1 = templist.pop()
+                        temp3 = newTemp()
+                        templist.append(temp3)
+                        genQuad(op, temp1, temp2, temp3)
+                        if self.term():
+                            continue
+                        else:
+                            Error(self, "term not found")
+                            return False
+                    return True
                 return True
             else:
                 Error(self, "term not found")
         return False
 
     def term(self):
-        while self.factor():
-            self.getToken()
-            while self.current.recognized_string in mulOperator:
-                self.getToken()
-                if self.factor():
+        if self.factor():
+            if(self.current.recognized_string in mulOperator):
+                while self.current.recognized_string in mulOperator:
                     self.getToken()
-                    return True
-                else:
-                    Error(self, "factor not found")
-                return False
+                    if self.factor():
+                        continue
+                    else:
+                        Error(self, "factor not found")
+                        return False
+                return True
             return True
         Error(self, "factor not found")
         return False
 
     def factor(self):
         if self.current.recognized_string.isnumeric():
-            self.getToken()
-            if not self.current.recognized_string == ")":
-                self.getPreviousToken()
             return True
         elif self.current.recognized_string == "(":
             self.getToken()
-            self.expression()
-            self.getToken()
-            if self.current.recognized_string == ")":
-                return True
+            if(self.expression()):
+                self.getToken()
+                if self.current.recognized_string == ")":
+                    return True
+            Error(self, "err somewhere")
             return False
         elif self.current.family == "id":
             self.getToken()
             if self.idtail():
                 return True
-            return True
+            Error(self, "err somewhere")
+            return False
+        Error(self, "err somewhere")
         return False
 
     def idtail(self):
         if self.current.recognized_string == "(":
             self.getToken()
 
-            if not self.actualparlist():
+            if self.actualparlist():
+                self.getToken()
+                if self.current.recognized_string == ")":
+                    return True
+                else:
+                    Error(self, "ERR")
+            else:
                 Error(self, "actualparlist not found")
-            self.getToken()
-            while self.current.recognized_string != ")":
-                self.getPreviousToken()
-            if self.current.recognized_string == ")":
-                return True
             Error(self, "closing parenthesis not found")
             return False
         return True
@@ -926,20 +980,24 @@ class Syntax(object):
         return True
 
     def blockstatements(self):
-        needNextStatement = False
-        while self.current.recognized_string == ";":
-            self.getToken()
+        needNextItem = False
+        ok = 0
         while self.statement():
-            needNextStatement = False
-            if (self.current != ";"):
+            ok = 1
+            needNextItem = False
+            self.getToken()
+            if self.current.recognized_string == ";":
+                needNextItem = True
                 self.getToken()
-            while self.current.recognized_string == ";":
-                self.getToken()
-                needNextStatement = True
+            if self.current.recognized_string == ")":
+                break
 
-        if (needNextStatement):
-            if self.current.recognized_string != "}":
-                Error(self, "Error, no next statement found after delimiter")
+        if (needNextItem == True and self.current.recognized_string != "}"):
+            Error(self, "Error, comma delimiter without next statement")
+            return False
+            
+        if(ok == 1):
+            return True
 
     def program(self):
         if self.current.recognized_string == "program":
@@ -997,4 +1055,3 @@ if __name__ == "__main__":
     f = open(sys.argv[1:][0], "r")
 
     main(f.read())
-
