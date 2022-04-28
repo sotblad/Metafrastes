@@ -291,7 +291,7 @@ class Lexer(object):
             count += 1
         if not self.stream[self.offset].isnumeric():
             count += 1
-        if count == 3:
+        if count == 3 and self.stream[self.offset] != "'":
             LexError(self, " token includes illegal alphabet " + str(self.current))
 
         return result
@@ -541,7 +541,6 @@ class Syntax(object):
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
-               #     self.getToken()
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
@@ -610,9 +609,6 @@ class Syntax(object):
                                         break
                                     if(self.current.recognized_string == "}"):
                                         self.getToken()
-                                #    if self.current.recognized_string != "case":
-                            #            Error(self, "case not found.")
-                             #       continue
                                 else:
                                     Error(self, "statements not found in case")
                                     return False
@@ -653,9 +649,6 @@ class Syntax(object):
                                         break
                                     if(self.current.recognized_string == "}"):
                                         self.getToken()
-                                #    if self.current.recognized_string != "case":
-                            #            Error(self, "case not found.")
-                             #       continue
                                 else:
                                     Error(self, "statements not found in case")
                                     return False
@@ -802,7 +795,6 @@ class Syntax(object):
         needNextItem = False
         while self.actualparitem():
             needNextItem = False
-        #    self.getToken()
             if self.current.recognized_string == ",":
                 needNextItem = True
                 self.getToken()
@@ -894,15 +886,11 @@ class Syntax(object):
                 Error(self, "condition not found")
             return False
         elif self.expression():
-        
-        ### TODO
             if(self.stream[self.offset+1].recognized_string in REL_OP):
                 self.getToken()
             if self.current.recognized_string in REL_OP:
                 self.getToken()
                 if self.expression():
-                  #  if(self.stream[self.offset+1].recognized_string not in keywords and self.stream[self.offset+1].family != "id"):
-                     #   self.getToken()
                     return True
                 else:
                      Error(self, "relop err")
