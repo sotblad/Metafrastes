@@ -387,7 +387,8 @@ class Syntax(object):
 
     def subprograms(self):
         while (self.subprogram()):
-            self.getToken()
+            if(self.current.recognized_string not in keywords):
+                self.getToken()
 
     def subprogram(self):
         if self.current.recognized_string in ["function", "procedure"]:
@@ -450,17 +451,24 @@ class Syntax(object):
             return False
             
     def statements(self):
-        if(self.statement()):
-            self.getToken()
-            if self.current.recognized_string == ";":
-                return True
-            else:
-                Error(self, "statement error")
-                return False
+        stat = self.statement()
+        if(stat):
+            while(stat):
+                if(self.stream[self.offset+1].recognized_string == ";"):
+                    self.getToken()
+                if self.current.recognized_string == ";":
+                    self.getToken()
+                    stat = self.statement()
+                else:
+                    Error(self, "statement error")
+                    return False
+            return True
         else:
             if self.current.recognized_string == "{":
                 self.getToken()
                 self.blockstatements()
+                if(self.stream[self.offset-1].recognized_string == "}"):
+                    return True
                 if self.current.recognized_string == "}":
                     return True
                 else:
@@ -688,9 +696,6 @@ class Syntax(object):
                                         break
                                     if(self.current.recognized_string == "}"):
                                         self.getToken()
-                                #    if self.current.recognized_string != "case":
-                            #            Error(self, "case not found.")
-                             #       continue
                                 else:
                                     Error(self, "statements not found in case")
                                     return False
@@ -891,6 +896,8 @@ class Syntax(object):
         elif self.expression():
         
         ### TODO
+            if(self.stream[self.offset+1].recognized_string in REL_OP):
+                self.getToken()
             if self.current.recognized_string in REL_OP:
                 self.getToken()
                 if self.expression():
@@ -911,6 +918,8 @@ class Syntax(object):
         if self.optionalSign():
             temp1 = self.current.recognized_string
             if self.term():
+                if(self.stream[self.offset+1].recognized_string in addOperator):
+                    self.getToken()
                 if self.current.recognized_string in addOperator:
                     while self.current.recognized_string in addOperator:
                         op = self.current.recognized_string
@@ -998,13 +1007,21 @@ class Syntax(object):
         while self.statement():
             ok = 1
             needNextItem = False
+            if(self.current.recognized_string in keywords):
+                return False
             self.getToken()
             if self.current.recognized_string == ";":
                 needNextItem = True
                 self.getToken()
             if self.current.recognized_string == ")":
                 break
-
+        
+        while(self.current.recognized_string in [")", ";"]):
+            self.getToken()
+        if(self.offset + 1 < len(self.stream)):
+            if(self.stream[self.offset+1].recognized_string == "case"):
+                self.getToken()
+                return True
         if (needNextItem == True and self.current.recognized_string != "}"):
             Error(self, "Error, comma delimiter without next statement")
             return False
