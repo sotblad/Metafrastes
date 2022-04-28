@@ -177,7 +177,7 @@ class Lexer(object):
 
         self.checkWhite()
 
-        if self.current in comment:
+        while self.current in comment:
             self.getChar()
             while self.current in [" ", "\t"]:
                 self.getChar()
@@ -346,6 +346,8 @@ class Syntax(object):
             if self.current.recognized_string == "}":
                 return True
             else:
+                if(self.stream[self.offset-1].recognized_string == "}"):
+                    return True
                 Error(self, "Error, block end not found")
         else:
             Error(self, "Error, block start not found")
@@ -427,9 +429,11 @@ class Syntax(object):
             if self.current.recognized_string == ")":
                 break
 
-        if (needNextItem == True):
+        if (needNextItem == True and self.current.recognized_string != ")"):
             Error(self, "Error, comma delimiter without next item")
             return False
+        if(self.current.recognized_string == ")"):
+            ok = 1
             
         if(ok == 1):
             return True
@@ -443,7 +447,6 @@ class Syntax(object):
                 Error(self, "error, id not found in formalparitem")
                 return False
         else:
-            Error(self, "formalparitem not found")
             return False
             
     def statements(self):
@@ -710,6 +713,9 @@ class Syntax(object):
                 self.getToken()
                 returnName = self.current.recognized_string
                 if self.expression():
+                    if(self.offset + 1 < len(self.stream)):
+                        if(self.stream[self.offset+1].recognized_string == ")"):
+                            self.getToken()
                     if self.current.recognized_string == ")":
                         genQuad("RET", returnName, "_", "_")
                         return True
@@ -812,14 +818,15 @@ class Syntax(object):
                     Error(self, "error, expression not found in actualparitem")
                     return False
             else:
+                self.getToken()
                 if self.current.family == "id":
+                    self.getToken()
                     return True
                 else:
                     Error(self, "error, id not found in actualparitem")
                     return False
                 genQuad("par", self.current.recognized_string, "REF", "_")
         else:
-            Error(self, "empty actualparitem")
             return False
 
     def condition(self):
@@ -863,6 +870,7 @@ class Syntax(object):
                 self.getToken()
                 if self.condition():
                     if self.current.recognized_string == "]":
+                        self.getToken()
                         return True
                     else:
                         Error(self, "closing arr not found")
@@ -873,6 +881,7 @@ class Syntax(object):
             self.getToken()
             if self.condition():
                 if self.current.recognized_string == "]":
+                    self.getToken()
                     return True
                 else:
                     Error(self, "closing arr not found")
@@ -885,8 +894,8 @@ class Syntax(object):
             if self.current.recognized_string in REL_OP:
                 self.getToken()
                 if self.expression():
-                    if(self.stream[self.offset+1].recognized_string not in keywords and self.stream[self.offset+1].family != "id"):
-                        self.getToken()
+                  #  if(self.stream[self.offset+1].recognized_string not in keywords and self.stream[self.offset+1].family != "id"):
+                     #   self.getToken()
                     return True
                 else:
                      Error(self, "relop err")
@@ -940,12 +949,15 @@ class Syntax(object):
 
     def factor(self):
         if self.current.recognized_string.isnumeric():
+            self.getToken()
             return True
         elif self.current.recognized_string == "(":
             self.getToken()
             if(self.expression()):
-                self.getToken()
+                if self.current.recognized_string != ")":
+                    self.getToken()
                 if self.current.recognized_string == ")":
+                    self.getToken()
                     return True
             Error(self, "err somewhere")
             return False
@@ -963,7 +975,8 @@ class Syntax(object):
             self.getToken()
 
             if self.actualparlist():
-                self.getToken()
+                if self.current.recognized_string != ")":
+                    self.getToken()
                 if self.current.recognized_string == ")":
                     return True
                 else:
@@ -1008,7 +1021,7 @@ class Syntax(object):
                 self.getToken()
                 self.block()
                 self.getToken()
-                if self.current.recognized_string == "." and not self.endFound:
+                if self.current.recognized_string == ".":
                     self.getToken()
                     if self.endFound:
                         genQuad("halt", "_", "_", "_")
@@ -1029,7 +1042,7 @@ def main(argv):
         lex = Lexer(form)
         token = lex.nextToken()
         while token is not None and not lex.endFound:
-            # print(token)
+       #     print(token)
             lex.checkValidation(token)
             lex.tokenList.append(token)
             token = lex.nextToken()
