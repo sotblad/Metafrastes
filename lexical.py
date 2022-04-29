@@ -997,6 +997,16 @@ class Syntax(object):
         needNextItem = False
         ok = 0
         while self.statement():
+            if(self.current.recognized_string == "}"):
+                zs = 0
+                if(self.stream[self.offset+1].recognized_string == ";"):
+                    self.getToken()
+                while(self.current.recognized_string == ";"):
+                    self.getToken()
+                    zs = 1
+                if(zs == 1):
+                    continue
+                return True
             ok = 1
             needNextItem = False
             if(self.current.recognized_string in keywords):
