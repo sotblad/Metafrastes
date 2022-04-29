@@ -52,7 +52,7 @@ allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";
 
 
 idCount = 100
-tempCount = 1
+tempCount = 0
 quads = []
 
 class Quad(object):
@@ -68,6 +68,18 @@ class Quad(object):
 
     def changeTarget(self, label):
         self.target = label
+        
+    def getFirst(self):
+        return self.operator
+        
+    def getSecond(self):
+        return self.operand1
+        
+    def getThird(self):
+        return self.operand2
+        
+    def getFourth(self):
+        return self.target
 
     def __str__(self):
         return "{4}: {0}, {1}, {2}, {3}".format(self.operator, self.operand1, self.operand2, self.target, self.idCount)
@@ -100,24 +112,6 @@ def backpatch(list, label):
         for j in quads:
             if j.idCount == i:
                 j.target = label
-
-# x1 = makeList(nextQuad())
-# genQuad('jump', '_', '_', '_')
-# genQuad('+', 'a', '1', 'a')
-# print(len(quads))
-# x2 = makeList(nextQuad())
-# genQuad('jump', '_', '_', '_')
-# x = mergeList(x1, x2)
-# genQuad('+', 'a', '2', 'a')
-# backpatch(x, nextQuad())
-# print(x)
-# for j in quads:
-#     print(j)
-# print(newTemp())
-# print(newTemp())
-# print(newTemp())
-
-
 
 class Token(object):
     def __init__(self, recognized_string, family, line_number):
@@ -454,8 +448,13 @@ class Syntax(object):
         stat = self.statement()
         if(stat):
             while(stat):
+                if(self.current.recognized_string in keywords):
+                    stat = self.statement()
+                    continue
                 if(self.stream[self.offset+1].recognized_string == ";"):
                     self.getToken()
+                if(self.current.recognized_string == "}" and self.stream[self.offset+1].recognized_string == "."):
+                    return True
                 if self.current.recognized_string == ";":
                     self.getToken()
                     stat = self.statement()
@@ -524,8 +523,13 @@ class Syntax(object):
             self.getToken()
             if self.current.recognized_string == ":=":
                 self.getToken()
-                genQuad(":=", self.current.recognized_string, "_", target)
+                tmpVar = self.current.recognized_string
+           #     genQuad(":=", self.current.recognized_string, "_", target)
                 if self.expression():
+                    src = tmpVar
+                    if(not src.isnumeric()):
+                        src = quads[len(quads)-1].getFourth()
+                    genQuad(":=", src, "_", target)
                     return True
                 else:
                     Error(self, "expression not found on assignment")
@@ -547,6 +551,7 @@ class Syntax(object):
                             if(self.stream[self.offset+1].recognized_string == "else"):
                                 self.getToken()
                             if self.elsepart():
+                                self.getToken()
                                 return True
                             else:
                                 Error(self, "elsepart not found")
@@ -562,6 +567,7 @@ class Syntax(object):
 
     def elsepart(self):
         if self.current.recognized_string == "else":
+            genQuad("jump", "_", "_", "_")
             self.getToken()
             if self.statements():
                 return True
@@ -580,6 +586,7 @@ class Syntax(object):
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
+                            self.getToken()
                             return True
                         else:
                             Error(self, "statements not found on whileStat")
@@ -685,8 +692,6 @@ class Syntax(object):
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
-                                    if (self.current.recognized_string == "default"):
-                                        break
                                     if(self.current.recognized_string == "}"):
                                         self.getToken()
                                 else:
@@ -715,7 +720,8 @@ class Syntax(object):
                         if(self.stream[self.offset+1].recognized_string == ")"):
                             self.getToken()
                     if self.current.recognized_string == ")":
-                        genQuad("RET", returnName, "_", "_")
+                        genQuad("RET", quads[len(quads)-2].getSecond(), "_", "_")
+                     #   genQuad("call", "_", "_", returnName)
                         return True
                     else:
                         Error(self, "closing parenthesis not found on returnStat")
@@ -737,8 +743,6 @@ class Syntax(object):
                     self.getToken()
                     if self.actualparlist():
                         if self.current.recognized_string == ")":
-                            genQuad("par", newTemp() , "RET", "_")
-                            genQuad("call", name, "_", "_")
                             return True
                         else:
                             Error(self, "closing parenthesis not found on callStat")
@@ -808,8 +812,8 @@ class Syntax(object):
         if self.current.recognized_string in ["in", "inout"]:
             if self.current.recognized_string == "in":
                 self.getToken()
-                genQuad("par", self.current.recognized_string, "CV", "_")
                 if self.expression():
+                    genQuad("par", quads[len(quads)-1].getFourth(), "CV", "_")
                     return True
                 else:
                     Error(self, "error, expression not found in actualparitem")
@@ -817,12 +821,12 @@ class Syntax(object):
             else:
                 self.getToken()
                 if self.current.family == "id":
+                    genQuad("par", self.current.recognized_string, "REF", "_")
                     self.getToken()
                     return True
                 else:
                     Error(self, "error, id not found in actualparitem")
                     return False
-                genQuad("par", self.current.recognized_string, "REF", "_")
         else:
             return False
 
@@ -889,7 +893,11 @@ class Syntax(object):
             if(self.stream[self.offset+1].recognized_string in REL_OP):
                 self.getToken()
             if self.current.recognized_string in REL_OP:
+                tmpRelOp = self.current.recognized_string
+                tmpVar = self.stream[self.offset-1].recognized_string
                 self.getToken()
+                genQuad(tmpRelOp, tmpVar, self.current.recognized_string, "_")
+                genQuad("jump", "_", "_", "_")
                 if self.expression():
                     return True
                 else:
@@ -969,12 +977,15 @@ class Syntax(object):
 
     def idtail(self):
         if self.current.recognized_string == "(":
+            tmpId = self.stream[self.offset-1].recognized_string
             self.getToken()
 
             if self.actualparlist():
                 if self.current.recognized_string != ")":
                     self.getToken()
                 if self.current.recognized_string == ")":
+                    genQuad("par", newTemp(), "RET", "_",)
+                    genQuad("call", tmpId, "_", "_",)
                     return True
                 else:
                     Error(self, "ERR")
@@ -993,11 +1004,18 @@ class Syntax(object):
         needNextItem = False
         ok = 0
         while self.statement():
+            if(self.current.recognized_string in keywords):
+                continue
+            if(self.current.recognized_string == "}"):
+                return True
             ok = 1
             needNextItem = False
             if(self.current.recognized_string in keywords):
                 return False
-            self.getToken()
+            if(self.offset + 1 < len(self.stream)):
+                if(self.stream[self.offset+1].recognized_string != ":="):
+                    self.getToken()
+                
             if self.current.recognized_string == ";":
                 needNextItem = True
                 self.getToken()
@@ -1010,6 +1028,7 @@ class Syntax(object):
             if(self.stream[self.offset+1].recognized_string == "case"):
                 self.getToken()
                 return True
+                
         if (needNextItem == True and self.current.recognized_string != "}"):
             Error(self, "Error, comma delimiter without next statement")
             return False
