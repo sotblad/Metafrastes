@@ -448,12 +448,18 @@ class Syntax(object):
         stat = self.statement()
         if(stat):
             while(stat):
-                if(self.stream[self.offset+1].recognized_string == ";"):
-                    self.getToken()
+                if(self.offset + 1 < len(self.stream)):
+                    if(self.stream[self.offset+1].recognized_string == ";"):
+                        self.getToken()
                 if self.current.recognized_string == ";":
                     self.getToken()
                     stat = self.statement()
                 else:
+                    if(self.current.recognized_string == "}"):
+                        if(self.stream[self.offset+1].recognized_string == "}"):
+                            self.getToken()
+                        #self.getToken()
+                        return True
                     Error(self, "statement error")
                     return False
             return True
@@ -805,6 +811,7 @@ class Syntax(object):
         if self.current.recognized_string in ["in", "inout"]:
             if self.current.recognized_string == "in":
                 self.getToken()
+                tmpVar = self.current.recognized_string
                 if self.expression():
                     genQuad("par", quads[len(quads)-1].getFourth(), "CV", "_")
                     return True
