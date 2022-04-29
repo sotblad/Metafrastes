@@ -448,13 +448,8 @@ class Syntax(object):
         stat = self.statement()
         if(stat):
             while(stat):
-                if(self.current.recognized_string in keywords):
-                    stat = self.statement()
-                    continue
                 if(self.stream[self.offset+1].recognized_string == ";"):
                     self.getToken()
-                if(self.current.recognized_string == "}" and self.stream[self.offset+1].recognized_string == "."):
-                    return True
                 if self.current.recognized_string == ";":
                     self.getToken()
                     stat = self.statement()
@@ -551,7 +546,6 @@ class Syntax(object):
                             if(self.stream[self.offset+1].recognized_string == "else"):
                                 self.getToken()
                             if self.elsepart():
-                                self.getToken()
                                 return True
                             else:
                                 Error(self, "elsepart not found")
@@ -586,7 +580,6 @@ class Syntax(object):
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
-                            self.getToken()
                             return True
                         else:
                             Error(self, "statements not found on whileStat")
@@ -1004,18 +997,11 @@ class Syntax(object):
         needNextItem = False
         ok = 0
         while self.statement():
-            if(self.current.recognized_string in keywords):
-                continue
-            if(self.current.recognized_string == "}"):
-                return True
             ok = 1
             needNextItem = False
             if(self.current.recognized_string in keywords):
                 return False
-            if(self.offset + 1 < len(self.stream)):
-                if(self.stream[self.offset+1].recognized_string != ":="):
-                    self.getToken()
-                
+            self.getToken()
             if self.current.recognized_string == ";":
                 needNextItem = True
                 self.getToken()
