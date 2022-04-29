@@ -51,8 +51,8 @@ allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";
                    "}", ".", "#", "\t", " ", "\n"]
 
 
-idCount = 100
-tempCount = 0
+idCount = 1
+tempCount = 1
 quads = []
 
 class Quad(object):
@@ -331,11 +331,13 @@ class Syntax(object):
 
         return result
 
-    def block(self):
+    def block(self, flag):
         if self.current.recognized_string == "{":
             self.getToken()
             self.declarations()
             self.subprograms()
+            if(flag == 0):
+                genQuad("begin_block", programName, "_", "_")
             self.blockstatements()
             if self.current.recognized_string == "}":
                 return True
@@ -396,7 +398,7 @@ class Syntax(object):
                     if(self.formalparlist()):
                         if self.current.recognized_string == ")":
                             self.getToken()
-                            if(self.block()):
+                            if(self.block(1)):
                                 genQuad("end_block", blockName, "_", "_")
                                 return True
                             else:
@@ -896,9 +898,10 @@ class Syntax(object):
                 tmpRelOp = self.current.recognized_string
                 tmpVar = self.stream[self.offset-1].recognized_string
                 self.getToken()
-                genQuad(tmpRelOp, tmpVar, self.current.recognized_string, "_")
-                genQuad("jump", "_", "_", "_")
+                tmp = self.current.recognized_string
                 if self.expression():
+                    genQuad(tmpRelOp, tmpVar, tmp, "_")
+                    genQuad("jump", "_", "_", "_")
                     return True
                 else:
                      Error(self, "relop err")
@@ -1041,14 +1044,16 @@ class Syntax(object):
         if(ok == 1):
             return True
 
+    programName = ""
     def program(self):
         if self.current.recognized_string == "program":
             self.getToken()
             if self.current.family == "id":
+                global programName
                 programName = self.current.recognized_string
-                genQuad("begin_block", programName, "_", "_")
+             #   genQuad("begin_block", programName, "_", "_")
                 self.getToken()
-                self.block()
+                self.block(0)
                 self.getToken()
                 if self.current.recognized_string == ".":
                     self.getToken()
