@@ -969,6 +969,8 @@ class Syntax(object):
         elif self.current.family == "id":
             self.getToken()
             if self.idtail():
+                if(self.stream[self.offset+1].recognized_string == ","):
+                    self.getToken()
                 return True
             Error(self, "err somewhere")
             return False
