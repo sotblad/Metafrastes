@@ -532,6 +532,9 @@ class Syntax(object):
                     src = tmpVar
                     if(not src.isnumeric()):
                         src = quads[len(quads)-1].getFourth()
+                        if(src == "_"):
+                            if(quads[len(quads)-2].getFirst() == "par"):
+                                src = quads[len(quads)-2].getSecond()
                     genQuad(":=", src, "_", target)
                     return True
                 else:
@@ -577,6 +580,7 @@ class Syntax(object):
                 Error(self, "statement not found on elsePart")
             return False
         else:
+            genQuad("jump", "_","_","_")
             return True
 
     def whileStat(self):
@@ -588,6 +592,7 @@ class Syntax(object):
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
+                            genQuad("jump", "_","_","_")
                             return True
                         else:
                             Error(self, "statements not found on whileStat")
@@ -721,7 +726,10 @@ class Syntax(object):
                         if(self.stream[self.offset+1].recognized_string == ")"):
                             self.getToken()
                     if self.current.recognized_string == ")":
-                        genQuad("RET", quads[len(quads)-2].getSecond(), "_", "_")
+                        tmpVar = quads[len(quads)-2].getSecond()
+                        if(quads[len(quads)-2].getFirst() == "ret"):
+                            tmpVar = self.stream[self.offset-1].recognized_string
+                        genQuad("ret", "_", "_", tmpVar)
                      #   genQuad("call", "_", "_", returnName)
                         return True
                     else:
@@ -815,7 +823,11 @@ class Syntax(object):
                 self.getToken()
                 tmpVar = self.current.recognized_string
                 if self.expression():
-                    genQuad("par", quads[len(quads)-1].getFourth(), "CV", "_")
+               #     print("ZIS", self.current, tmpVar, self.stream[self.offset-1])
+                    if(self.stream[self.offset-1].recognized_string != tmpVar):
+                        if(quads[len(quads)-1].getFourth() != "_"):
+                            tmpVar = quads[len(quads)-1].getFourth()
+                    genQuad("par", tmpVar, "cv", "_")
                     return True
                 else:
                     Error(self, "error, expression not found in actualparitem")
@@ -823,7 +835,7 @@ class Syntax(object):
             else:
                 self.getToken()
                 if self.current.family == "id":
-                    genQuad("par", self.current.recognized_string, "REF", "_")
+                    genQuad("par", self.current.recognized_string, "ref", "_")
                     self.getToken()
                     return True
                 else:
@@ -900,6 +912,8 @@ class Syntax(object):
                 self.getToken()
                 tmp = self.current.recognized_string
                 if self.expression():
+                    if(quads[len(quads)-1].getFirst() in addOperator):
+                        tmpVar = quads[len(quads)-1].getFourth()
                     genQuad(tmpRelOp, tmpVar, tmp, "_")
                     genQuad("jump", "_", "_", "_")
                     return True
@@ -989,7 +1003,7 @@ class Syntax(object):
                 if self.current.recognized_string != ")":
                     self.getToken()
                 if self.current.recognized_string == ")":
-                    genQuad("par", newTemp(), "RET", "_",)
+                    genQuad("par", newTemp(), "ret", "_",)
                     genQuad("call", tmpId, "_", "_",)
                     return True
                 else:
