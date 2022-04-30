@@ -527,14 +527,18 @@ class Syntax(object):
             if self.current.recognized_string == ":=":
                 self.getToken()
                 tmpVar = self.current.recognized_string
-           #     genQuad(":=", self.current.recognized_string, "_", target)
+                
                 if self.expression():
                     src = tmpVar
                     if(not src.isnumeric()):
                         src = quads[len(quads)-1].getFourth()
+                        if(quads[len(quads)-1].getFirst() in ["in", "inout"]):
+                            src = quads[len(quads)-1].getSecond()
                         if(src == "_"):
                             if(quads[len(quads)-2].getFirst() == "par"):
                                 src = quads[len(quads)-2].getSecond()
+                    if(quads[len(quads)-1].getFirst() in addOperator or quads[len(quads)-1].getFirst() in mulOperator):
+                        src = quads[len(quads)-1].getFourth()
                     genQuad(":=", src, "_", target)
                     return True
                 else:
@@ -730,7 +734,6 @@ class Syntax(object):
                         if(quads[len(quads)-2].getFirst() == "ret"):
                             tmpVar = self.stream[self.offset-1].recognized_string
                         genQuad("ret", "_", "_", tmpVar)
-                     #   genQuad("call", "_", "_", returnName)
                         return True
                     else:
                         Error(self, "closing parenthesis not found on returnStat")
@@ -823,7 +826,6 @@ class Syntax(object):
                 self.getToken()
                 tmpVar = self.current.recognized_string
                 if self.expression():
-               #     print("ZIS", self.current, tmpVar, self.stream[self.offset-1])
                     if(self.stream[self.offset-1].recognized_string != tmpVar):
                         if(quads[len(quads)-1].getFourth() != "_"):
                             tmpVar = quads[len(quads)-1].getFourth()
@@ -914,6 +916,8 @@ class Syntax(object):
                 if self.expression():
                     if(quads[len(quads)-1].getFirst() in addOperator):
                         tmpVar = quads[len(quads)-1].getFourth()
+                    if(quads[len(quads)-1].getFirst() in mulOperator or quads[len(quads)-1].getFirst() in addOperator):
+                        tmp = quads[len(quads)-1].getFourth()
                     genQuad(tmpRelOp, tmpVar, tmp, "_")
                     genQuad("jump", "_", "_", "_")
                     return True
@@ -928,6 +932,7 @@ class Syntax(object):
 
     def expression(self):
         templist = []
+        lstlst = []
         if self.optionalSign():
             temp1 = self.current.recognized_string
             if self.term():
@@ -935,15 +940,30 @@ class Syntax(object):
                     self.getToken()
                 if self.current.recognized_string in addOperator:
                     while self.current.recognized_string in addOperator:
+                        addNext = 0
                         op = self.current.recognized_string
                         self.getToken()
                         temp2 = self.current.recognized_string
                         if len(templist) != 0:
                             temp1 = templist.pop()
-                        temp3 = newTemp()
-                        templist.append(temp3)
-                        genQuad(op, temp1, temp2, temp3)
+                        if(self.stream[self.offset+1].recognized_string not in mulOperator):
+                            if(temp2 != "("):
+                                temp3 = newTemp()
+                                templist.append(temp3)
+                                if(quads[len(quads)-1].getFirst() in mulOperator):
+                                    temp2 = quads[len(quads)-1].getFourth()
+                                genQuad(op, temp1, temp2, temp3)
+                           #     print(op, temp1, temp2)
+                        else:
+                            addNext = 1
                         if self.term():
+                            if(addNext == 1):
+                                temp2 = quads[len(quads)-1].getFourth()
+                                newTempa = newTemp()
+                                if(len(lstlst) != 0):
+                                    temp1 = lstlst.pop()
+                                genQuad(op, temp1, temp2, newTempa)
+                                lstlst.append(newTempa)
                             continue
                         else:
                             Error(self, "term not found")
@@ -955,11 +975,32 @@ class Syntax(object):
         return False
 
     def term(self):
+        templist = []
+        temp1 = self.current.recognized_string
         if self.factor():
             if(self.current.recognized_string in mulOperator):
                 while self.current.recognized_string in mulOperator:
+                    addNext = 0
+                    op = self.current.recognized_string
                     self.getToken()
+                    tempSecond = self.current.recognized_string
+                    if len(templist) != 0:
+                        temp1 = templist.pop()
+                    if(self.current.recognized_string != "("):
+                        temp3 = newTemp()
+                        templist.append(temp3)
+                        if(self.stream[self.offset-2].recognized_string != ")"):
+                            tmpSecond = self.stream[self.offset-2].recognized_string
+                        else:
+                            temp1 = quads[len(quads)-1].getFourth()
+                        genQuad(op, temp1, self.current.recognized_string, temp3)
+                     #   print(op,temp1,tempSecond)
+                    else:
+                        addNext = 1
                     if self.factor():
+                        if(addNext == 1):
+                            temp2 = quads[len(quads)-1].getFourth()
+                            genQuad(op, temp1, temp2, newTemp())
                         continue
                     else:
                         Error(self, "factor not found")
@@ -1065,7 +1106,6 @@ class Syntax(object):
             if self.current.family == "id":
                 global programName
                 programName = self.current.recognized_string
-             #   genQuad("begin_block", programName, "_", "_")
                 self.getToken()
                 self.block(0)
                 self.getToken()
