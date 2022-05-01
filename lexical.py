@@ -51,7 +51,7 @@ allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";
                    "}", ".", "#", "\t", " ", "\n"]
 
 
-idCount = 99 # 69
+idCount = 1 # 69
 tempCount = 1
 quads = []
 
@@ -573,6 +573,9 @@ class Syntax(object):
                       #          print(falseList)
                                 for i in range(0, len(trueList)):
                                     backpatch([trueList[i]], falseList[i]+1)
+
+                                trueList =[]
+                                falseList =[]
                                 return True
                             else:
                                 Error(self, "elsepart not found")
@@ -875,8 +878,9 @@ class Syntax(object):
                 while self.current.recognized_string == "or":
                     if(len(falseList) != 0):
                         for i in range(0,len(falseList)):
-                         #   print([trueList[i:]])
                             backpatch([falseList[i]], trueList[i]+2)
+                        trueList =[]
+                        falseList =[]
                     self.getToken()
                     if self.boolterm():
                         continue
@@ -907,8 +911,9 @@ class Syntax(object):
                 for i in range(0, len(trueList)):
                     backpatch([trueList[i]], trueList[i]+2)
                #     backpatch([trueList[i]+1], trueList[i]+4    )
-                
                 global falseList
+                trueList =[]
+                falseList =[]
        #         print(falseList)
                 return True
         Error(self, "boolfactor not found")
@@ -953,7 +958,7 @@ class Syntax(object):
                     if(quads[len(quads)-1].getFirst() in mulOperator):
                         tmp = quads[len(quads)-1].getFourth()
                     genQuad(tmpRelOp, tmpVar, tmp, "_")
-                 #   print(quads[len(quads)-1].getId())
+
                     global trueList
                     trueList.append(quads[len(quads)-1].getId())
                     genQuad("jump", "_", "_", "_")
@@ -985,14 +990,13 @@ class Syntax(object):
                         temp2 = self.current.recognized_string
                         if len(templist) != 0:
                             temp1 = templist.pop()
-                        if(self.stream[self.offset+1].recognized_string not in mulOperator):
+                        if(self.stream[self.offset+1].recognized_string not in mulOperator and self.stream[self.offset+1].recognized_string != "("):
                             if(temp2 != "("):
                                 temp3 = newTemp()
                                 templist.append(temp3)
                                 if(quads[len(quads)-1].getFirst() in mulOperator):
                                     temp2 = quads[len(quads)-1].getFourth()
                                 genQuad(op, temp1, temp2, temp3)
-                           #     print(op, temp1, temp2)
                         else:
                             addNext = 1
                         if self.term():
@@ -1001,6 +1005,8 @@ class Syntax(object):
                                 newTempa = newTemp()
                                 if(len(lstlst) != 0):
                                     temp1 = lstlst.pop()
+                                if(quads[len(quads)-1].getFirst() == "call" and quads[len(quads)-2].getThird()):
+                                    temp2 = quads[len(quads)-2].getSecond()
                                 genQuad(op, temp1, temp2, newTempa)
                                 lstlst.append(newTempa)
                             continue
@@ -1033,7 +1039,6 @@ class Syntax(object):
                         else:
                             temp1 = quads[len(quads)-1].getFourth()
                         genQuad(op, temp1, self.current.recognized_string, temp3)
-                     #   print(op,temp1,tempSecond)
                     else:
                         addNext = 1
                     if self.factor():
