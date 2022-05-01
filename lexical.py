@@ -486,8 +486,10 @@ class Syntax(object):
     def statement(self):
         ok = 0
         if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return",
-                                              "input", "print"] or self.current.family == "id":
+                                              "input", "print", ";"] or self.current.family == "id":
             ok = 1
+            if(self.current.recognized_string == ";"):
+                return True
             if self.current.recognized_string == "if":
                 if(not self.ifStat()):
                     ok = -1
@@ -543,7 +545,6 @@ class Syntax(object):
                     if(quads[len(quads)-1].getFirst() in addOperator or quads[len(quads)-1].getFirst() in mulOperator):
                         src = quads[len(quads)-1].getFourth()
                     genQuad(":=", src, "_", target)
-                #    genQuad("jump", "_", "_", "_")
                     return True
                 else:
                     Error(self, "expression not found on assignment")
@@ -572,8 +573,9 @@ class Syntax(object):
                         #        print(trueList)
                       #          print(falseList)
                                 for i in range(0, len(trueList)):
-                                    backpatch([trueList[i]], falseList[i]+1)
-
+                                    backpatch([trueList[i]], nextQuad())
+                                #global trueList
+                               # global falseList
                                 trueList =[]
                                 falseList =[]
                                 return True
@@ -700,6 +702,7 @@ class Syntax(object):
 
             if self.current.recognized_string == "default":
                 self.getToken()
+          #      print("EDWW", self.current)
                 if self.statements():
                     return True
                 else:
@@ -769,12 +772,14 @@ class Syntax(object):
         if self.current.recognized_string == "call":
             self.getToken()
             if self.current.family == "id":
+                tmpId = self.current.recognized_string
                 name = self.current.recognized_string
                 self.getToken()
                 if self.current.recognized_string == "(":
                     self.getToken()
                     if self.actualparlist():
                         if self.current.recognized_string == ")":
+                            genQuad("call", tmpId, "_", "_")
                             return True
                         else:
                             Error(self, "closing parenthesis not found on callStat")
@@ -845,11 +850,13 @@ class Syntax(object):
             if self.current.recognized_string == "in":
                 self.getToken()
                 tmpVar = self.current.recognized_string
+                tmptmp = self.stream[self.offset+1].recognized_string
                 if self.expression():
                     if(self.stream[self.offset-1].recognized_string != tmpVar):
                         if(quads[len(quads)-1].getFourth() != "_"):
                             tmpVar = quads[len(quads)-1].getFourth()
-                    genQuad("par", tmpVar, "cv", "_")
+                    if(tmptmp != "("):
+                        genQuad("par", tmpVar, "cv", "_")
                     return True
                 else:
                     Error(self, "error, expression not found in actualparitem")
@@ -910,10 +917,14 @@ class Syntax(object):
         #        print(trueList)
                 for i in range(0, len(trueList)):
                     backpatch([trueList[i]], trueList[i]+2)
+              #      print(trueList[i]+2)
                #     backpatch([trueList[i]+1], trueList[i]+4    )
                 global falseList
+                #global trueList
                 trueList =[]
                 falseList =[]
+                
+             #   global falseList
        #         print(falseList)
                 return True
         Error(self, "boolfactor not found")
@@ -997,6 +1008,9 @@ class Syntax(object):
                                 if(quads[len(quads)-1].getFirst() in mulOperator):
                                     temp2 = quads[len(quads)-1].getFourth()
                                 genQuad(op, temp1, temp2, temp3)
+                            else:
+                                addNext = 1
+                           #     print(op, temp1, temp2)
                         else:
                             addNext = 1
                         if self.term():
@@ -1022,9 +1036,11 @@ class Syntax(object):
     def term(self):
         templist = []
         temp1 = self.current.recognized_string
+        tempp = self.current.recognized_string
         if self.factor():
             if(self.current.recognized_string in mulOperator):
                 while self.current.recognized_string in mulOperator:
+                    temp1 = tempp
                     addNext = 0
                     op = self.current.recognized_string
                     self.getToken()
@@ -1039,12 +1055,16 @@ class Syntax(object):
                         else:
                             temp1 = quads[len(quads)-1].getFourth()
                         genQuad(op, temp1, self.current.recognized_string, temp3)
+                        tempp = temp3
+                     #   print(op,temp1,tempSecond)
                     else:
                         addNext = 1
                     if self.factor():
                         if(addNext == 1):
                             temp2 = quads[len(quads)-1].getFourth()
-                            genQuad(op, temp1, temp2, newTemp())
+                            newTempe = newTemp()
+                            genQuad(op, temp1, temp2, newTempe)
+                            tempp = newTempe
                         continue
                     else:
                         Error(self, "factor not found")
@@ -1192,8 +1212,12 @@ def main(argv):
             syntax = Syntax(lex.tokenList)
             token = syntax.getToken()
             sntx = syntax.program()
+            f = open("IR.int", "w")
             for i in quads:
                 print(i)
+                f.write(str(i) + "\n")
+            f.close()
+
 
     else:
         print('Invalid parameters.')
