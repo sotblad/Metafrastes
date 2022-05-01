@@ -51,7 +51,7 @@ allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";
                    "}", ".", "#", "\t", " ", "\n"]
 
 
-idCount = 1
+idCount = 99 # 69
 tempCount = 1
 quads = []
 
@@ -68,6 +68,9 @@ class Quad(object):
 
     def changeTarget(self, label):
         self.target = label
+        
+    def getId(self):
+        return self.idCount
         
     def getFirst(self):
         return self.operator
@@ -540,6 +543,7 @@ class Syntax(object):
                     if(quads[len(quads)-1].getFirst() in addOperator or quads[len(quads)-1].getFirst() in mulOperator):
                         src = quads[len(quads)-1].getFourth()
                     genQuad(":=", src, "_", target)
+                #    genQuad("jump", "_", "_", "_")
                     return True
                 else:
                     Error(self, "expression not found on assignment")
@@ -550,6 +554,10 @@ class Syntax(object):
         return False
 
     def ifStat(self):
+        global trueList
+        global falseList
+        trueList = []
+        falseList = []
         if self.current.recognized_string == "if":
             self.getToken()
             if self.current.recognized_string == "(":
@@ -561,6 +569,10 @@ class Syntax(object):
                             if(self.stream[self.offset+1].recognized_string == "else"):
                                 self.getToken()
                             if self.elsepart():
+                        #        print(trueList)
+                      #          print(falseList)
+                                for i in range(0, len(trueList)):
+                                    backpatch([trueList[i]], falseList[i]+1)
                                 return True
                             else:
                                 Error(self, "elsepart not found")
@@ -577,6 +589,7 @@ class Syntax(object):
     def elsepart(self):
         if self.current.recognized_string == "else":
             genQuad("jump", "_", "_", "_")
+            
             self.getToken()
             if self.statements():
                 return True
@@ -588,6 +601,7 @@ class Syntax(object):
             return True
 
     def whileStat(self):
+        tmpQuad = quads[len(quads)-1].getId()+1
         if self.current.recognized_string == "while":
             self.getToken()
             if self.current.recognized_string == "(":
@@ -596,7 +610,7 @@ class Syntax(object):
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
-                            genQuad("jump", "_","_","_")
+                            genQuad("jump", "_","_",tmpQuad)
                             return True
                         else:
                             Error(self, "statements not found on whileStat")
@@ -622,6 +636,7 @@ class Syntax(object):
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
+                                    genQuad("jump","_","_", "_")
                                     if (self.current.recognized_string == "default"):
                                         break
                                     if(self.current.recognized_string == "}"):
@@ -662,6 +677,7 @@ class Syntax(object):
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
+                                    genQuad("jump","_","_", "_")
                                     if (self.current.recognized_string == "default"):
                                         break
                                     if(self.current.recognized_string == "}"):
@@ -702,6 +718,7 @@ class Syntax(object):
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
+                                    genQuad("jump","_","_", "_")
                                     if(self.current.recognized_string == "}"):
                                         self.getToken()
                                 else:
@@ -850,7 +867,16 @@ class Syntax(object):
         ok = 1
         if self.boolterm():
             if(self.current.recognized_string == "or"):
+                global trueList
+            #    print(trueList)
+                
+                global falseList
+                #print(falseList)
                 while self.current.recognized_string == "or":
+                    if(len(falseList) != 0):
+                        for i in range(0,len(falseList)):
+                         #   print([trueList[i:]])
+                            backpatch([falseList[i]], trueList[i]+2)
                     self.getToken()
                     if self.boolterm():
                         continue
@@ -876,6 +902,14 @@ class Syntax(object):
                         Error(self, "boolfactor not found")
                         break
             if(ok == 1):
+                global trueList
+        #        print(trueList)
+                for i in range(0, len(trueList)):
+                    backpatch([trueList[i]], trueList[i]+2)
+               #     backpatch([trueList[i]+1], trueList[i]+4    )
+                
+                global falseList
+       #         print(falseList)
                 return True
         Error(self, "boolfactor not found")
         return False
@@ -916,10 +950,15 @@ class Syntax(object):
                 if self.expression():
                     if(quads[len(quads)-1].getFirst() in addOperator):
                         tmpVar = quads[len(quads)-1].getFourth()
-                    if(quads[len(quads)-1].getFirst() in mulOperator or quads[len(quads)-1].getFirst() in addOperator):
+                    if(quads[len(quads)-1].getFirst() in mulOperator):
                         tmp = quads[len(quads)-1].getFourth()
                     genQuad(tmpRelOp, tmpVar, tmp, "_")
+                 #   print(quads[len(quads)-1].getId())
+                    global trueList
+                    trueList.append(quads[len(quads)-1].getId())
                     genQuad("jump", "_", "_", "_")
+                    global falseList
+                    falseList.append(quads[len(quads)-1].getId())
                     return True
                 else:
                      Error(self, "relop err")
@@ -1101,6 +1140,10 @@ class Syntax(object):
 
     programName = ""
     def program(self):
+        global trueList
+        trueList = []
+        global falseList
+        falseList = []
         if self.current.recognized_string == "program":
             self.getToken()
             if self.current.family == "id":
