@@ -467,7 +467,6 @@ class Syntax(object):
                     if(self.current.recognized_string == "}"):
                         if(self.stream[self.offset+1].recognized_string == "}"):
                             self.getToken()
-                        #self.getToken()
                         return True
                     Error(self, "statement error")
                     return False
@@ -584,8 +583,6 @@ class Syntax(object):
                             if(self.stream[self.offset+1].recognized_string == "else"):
                                 self.getToken()
                             if self.elsepart(ifList):
-                                #global trueList
-                               # global falseList
                                 trueList =[]
                                 falseList =[]
                                 return True
@@ -605,7 +602,6 @@ class Syntax(object):
         if self.current.recognized_string == "else":
             self.getToken()
             if self.statements():
-                print(ifList)
                 backpatch(ifList, nextQuad())
                 return True
             else:
@@ -719,7 +715,10 @@ class Syntax(object):
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
-                                    genQuad("jump","_","_", "_")
+                                    last = "_"
+                                    if(quads[len(quads)-1].getFirst() == ":="):
+                                        last = firstCondQuad
+                                    genQuad("jump","_","_", last)
                                     backpatch(tmpFlstfalse, nextQuad())
                                     if (self.current.recognized_string == "default"):
                                         break
@@ -740,7 +739,6 @@ class Syntax(object):
 
             if self.current.recognized_string == "default":
                 self.getToken()
-          #      print("EDWW", self.current)
                 if self.statements():
                     return True
                 else:
@@ -1053,7 +1051,6 @@ class Syntax(object):
                                 genQuad(op, temp1, temp2, temp3)
                             else:
                                 addNext = 1
-                           #     print(op, temp1, temp2)
                         else:
                             addNext = 1
                         if self.term():
@@ -1099,7 +1096,6 @@ class Syntax(object):
                             temp1 = quads[len(quads)-1].getFourth()
                         genQuad(op, temp1, self.current.recognized_string, temp3)
                         tempp = temp3
-                     #   print(op,temp1,tempSecond)
                     else:
                         addNext = 1
                     if self.factor():
