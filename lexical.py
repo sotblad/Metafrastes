@@ -51,7 +51,7 @@ allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";
                    "}", ".", "#", "\t", " ", "\n"]
 
 
-idCount = 1 # 69
+idCount = 99 # 69
 tempCount = 1
 quads = []
 
@@ -450,6 +450,10 @@ class Syntax(object):
             return False
             
     def statements(self):
+        global wListFalse
+        wListFalse = []
+        global wListTrue
+        wListTrue = []
         stat = self.statement()
         if(stat):
             while(stat):
@@ -559,21 +563,27 @@ class Syntax(object):
         global falseList
         trueList = []
         falseList = []
+        global ifListTrue
+        ifListTrue = []
+        global ifListFalse
+        ifListFalse = []
+        tmpIFlstfalse = []
+        tmpIFlsttrue = []
         if self.current.recognized_string == "if":
             self.getToken()
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
+                    tmpIFlstfalse = wListFalse
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
+                            ifList = makeList(nextQuad())
+                            genQuad("jump", "_", "_", "_")
+                            backpatch(tmpIFlstfalse, nextQuad())
                             if(self.stream[self.offset+1].recognized_string == "else"):
                                 self.getToken()
-                            if self.elsepart():
-                        #        print(trueList)
-                      #          print(falseList)
-                                for i in range(0, len(trueList)):
-                                    backpatch([trueList[i]], nextQuad())
+                            if self.elsepart(ifList):
                                 #global trueList
                                # global falseList
                                 trueList =[]
@@ -591,31 +601,41 @@ class Syntax(object):
                 Error(self, "starting parenthesis not found on ifStat")
         return False
 
-    def elsepart(self):
+    def elsepart(self,ifList):
         if self.current.recognized_string == "else":
-            genQuad("jump", "_", "_", "_")
-            
             self.getToken()
             if self.statements():
+                print(ifList)
+                backpatch(ifList, nextQuad())
                 return True
             else:
                 Error(self, "statement not found on elsePart")
             return False
         else:
-            genQuad("jump", "_","_","_")
+            backpatch(ifList, nextQuad())
             return True
 
     def whileStat(self):
-        tmpQuad = quads[len(quads)-1].getId()+1
+        global wListTrue
+        wListTrue = []
+        global wListFalse
+        wListFalse = []
+        tmpWlstfalse = []
+        tmpWlsttrue = []
+        tmpQuad = nextQuad()
         if self.current.recognized_string == "while":
             self.getToken()
             if self.current.recognized_string == "(":
                 self.getToken()
                 if self.condition():
+                    tmpWlstfalse = wListFalse
+                    tmpWlsttrue = wListTrue
+                    backpatch(tmpWlsttrue, nextQuad())
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
                             genQuad("jump", "_","_",tmpQuad)
+                            backpatch(tmpWlstfalse, nextQuad())
                             return True
                         else:
                             Error(self, "statements not found on whileStat")
@@ -630,7 +650,11 @@ class Syntax(object):
         return False
 
     def switchcaseStat(self):
+        tmpSlstfalse = []
+        tmpSlsttrue = []
+        exitList = []
         if self.current.recognized_string == "switchcase":
+            exitList = emptyList()
             self.getToken()
             if(self.current.recognized_string == "case"):
                 while self.current.recognized_string == "case":
@@ -638,10 +662,16 @@ class Syntax(object):
                     if self.current.recognized_string == "(":
                         self.getToken()
                         if self.condition():
+                            tmpSlstfalse = wListFalse
+                            tmpSlsttrue = wListTrue
+                            backpatch(tmpSlsttrue, nextQuad())
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
+                                    t = makeList(nextQuad())
                                     genQuad("jump","_","_", "_")
+                                    exitList = mergeList(exitList, t)
+                                    backpatch(tmpSlstfalse, nextQuad())
                                     if (self.current.recognized_string == "default"):
                                         break
                                     if(self.current.recognized_string == "}"):
@@ -662,6 +692,7 @@ class Syntax(object):
             if self.current.recognized_string == "default":
                 self.getToken()
                 if self.statements():
+                    backpatch(exitList,nextQuad())
                     return True
                 else:
                     Error(self, "statements not found on default switchcase")
@@ -671,7 +702,10 @@ class Syntax(object):
         return False
 
     def forcaseStat(self):
+        tmpFlstfalse = []
+        tmpFlsttrue = []
         if self.current.recognized_string == "forcase":
+            firstCondQuad = nextQuad()
             self.getToken()
             if(self.current.recognized_string == "case"):
                 while self.current.recognized_string == "case":
@@ -679,10 +713,14 @@ class Syntax(object):
                     if self.current.recognized_string == "(":
                         self.getToken()
                         if self.condition():
+                            tmpFlstfalse = wListFalse
+                            tmpFlsttrue = wListTrue
+                            backpatch(tmpFlsttrue, nextQuad())
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
                                     genQuad("jump","_","_", "_")
+                                    backpatch(tmpFlstfalse, nextQuad())
                                     if (self.current.recognized_string == "default"):
                                         break
                                     if(self.current.recognized_string == "}"):
@@ -713,7 +751,12 @@ class Syntax(object):
         return False
 
     def incaseStat(self):
+        tmpIlstfalse = []
+        tmpIlsttrue = []
         if self.current.recognized_string == "incase":
+            flag = newTemp()
+            firstCondQuad = nextQuad()
+            genQuad(":=", 0, "_", flag)
             self.getToken()
             if(self.current.recognized_string == "case"):
                 while self.current.recognized_string == "case":
@@ -721,10 +764,14 @@ class Syntax(object):
                     if self.current.recognized_string == "(":
                         self.getToken()
                         if self.condition():
+                            tmpIlstfalse = wListFalse
+                            tmpIlsttrue = wListTrue
+                            backpatch(tmpIlsttrue, nextQuad())
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
-                                    genQuad("jump","_","_", "_")
+                                    genQuad(":=",1,"_",flag)
+                                    backpatch(tmpIlstfalse, nextQuad())
                                     if(self.current.recognized_string == "}"):
                                         self.getToken()
                                 else:
@@ -878,10 +925,8 @@ class Syntax(object):
         if self.boolterm():
             if(self.current.recognized_string == "or"):
                 global trueList
-            #    print(trueList)
                 
                 global falseList
-                #print(falseList)
                 while self.current.recognized_string == "or":
                     if(len(falseList) != 0):
                         for i in range(0,len(falseList)):
@@ -914,18 +959,16 @@ class Syntax(object):
                         break
             if(ok == 1):
                 global trueList
-        #        print(trueList)
                 for i in range(0, len(trueList)):
                     backpatch([trueList[i]], trueList[i]+2)
-              #      print(trueList[i]+2)
-               #     backpatch([trueList[i]+1], trueList[i]+4    )
                 global falseList
-                #global trueList
+                global wListTrue
+                wListTrue += trueList
+                global wListFalse
+                wListFalse += falseList
                 trueList =[]
                 falseList =[]
-                
-             #   global falseList
-       #         print(falseList)
+
                 return True
         Error(self, "boolfactor not found")
         return False
@@ -1165,6 +1208,10 @@ class Syntax(object):
 
     programName = ""
     def program(self):
+        global wListTrue
+        wListTrue = []
+        global wListFalse
+        wListFalse = []
         global trueList
         trueList = []
         global falseList
