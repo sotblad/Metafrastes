@@ -489,10 +489,8 @@ class Syntax(object):
     def statement(self):
         ok = 0
         if self.current.recognized_string in ["if", "while", "switchcase", "forcase", "incase", "call", "return",
-                                              "input", "print", ";"] or self.current.family == "id":
+                                              "input", "print"] or self.current.family == "id":
             ok = 1
-            if(self.current.recognized_string == ";"):
-                return True
             if self.current.recognized_string == "if":
                 if(not self.ifStat()):
                     ok = -1
@@ -1009,6 +1007,8 @@ class Syntax(object):
                         tmpVar = quads[len(quads)-1].getFourth()
                     if(quads[len(quads)-1].getFirst() in mulOperator):
                         tmp = quads[len(quads)-1].getFourth()
+                    if(quads[len(quads)-1].getFirst() == "call"):
+                        tmpVar = quads[len(quads)-2].getSecond()
                     genQuad(tmpRelOp, tmpVar, tmp, "_")
 
                     global trueList
