@@ -58,6 +58,7 @@ quads = []
 def genInt(quads):
     int = open("IR.int", "w")
     for i in quads:
+        print(str(i))
         int.write(str(i) + "\n")
     int.close()
     
@@ -521,6 +522,8 @@ class Syntax(object):
                 else:
                     Error(self, "no closing bracket found")
                     return False
+            if(self.current.recognized_string == ";"):
+                return True
                 
         Error(self, "invalid statements format")
         return False
