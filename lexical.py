@@ -81,30 +81,30 @@ def genC(quads):
             output = "printf(\"%d\", " + str(i.getSecond()) + ")"
         elif(i.getFirst() == ":="):
             output = str(i.getFourth()) + " = " + str(i.getSecond())
-            if(not i.getFourth().isnumeric() and i.getFourth() not in intList):
+            if(not str(i.getFourth()).isnumeric() and i.getFourth() not in intList):
                 intList.append(i.getFourth())
-            if(not i.getSecond().isnumeric() and i.getSecond() not in intList):
+            if(not str(i.getSecond()).isnumeric() and i.getSecond() not in intList):
                 intList.append(i.getSecond())
         elif(i.getFirst() in REL_OP):
             equal = ""
             if(i.getFirst() == "="):
                 equal = "="
             output = "if (" + str(i.getSecond()) + " " + str(i.getFirst()) + equal + " " + str(i.getThird()) + ") goto L" + str(i.getFourth())
-            if(not i.getThird().isnumeric() and i.getThird() not in intList):
+            if(not str(i.getThird().isnumeric()) and i.getThird() not in intList):
                 intList.append(i.getThird())
-            if(not i.getSecond().isnumeric() and i.getSecond() not in intList):
+            if(not str(i.getSecond().isnumeric()) and i.getSecond() not in intList):
                 intList.append(i.getSecond())
         elif(i.getFirst() in addOperator or i.getFirst() in mulOperator):
             output = str(i.getFourth()) + " = " + str(i.getSecond()) + " " + str(i.getFirst()) + " " + str(i.getThird())
-            if(not i.getFourth().isnumeric() and i.getFourth() not in intList):
+            if(not str(i.getFourth().isnumeric()) and i.getFourth() not in intList):
                 intList.append(i.getFourth())
-            if(not i.getSecond().isnumeric() and i.getSecond() not in intList):
+            if(not str(i.getSecond().isnumeric()) and i.getSecond() not in intList):
                 intList.append(i.getSecond())
         elif(i.getFirst() == "ret"):
             if(quads[index-1].getFirst() == "call"):
                 index += 1
                 continue
-            if(not i.getFourth().isnumeric() and i.getFourth() not in intList):
+            if(not str(i.getFourth().isnumeric()) and i.getFourth() not in intList):
                 intList.append(i.getFourth())
             output = "return(" + str(i.getFourth()) + ")"
                 
