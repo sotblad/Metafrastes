@@ -55,6 +55,45 @@ idCount = 1 # 69
 tempCount = 1
 quads = []
 
+def genInt(quads):
+    int = open("IR.int", "w")
+    for i in quads:
+        int.write(str(i) + "\n")
+    int.close()
+    
+def genC(quads):
+    c = open("IR.c", "w")
+    c.write("#include <stdio.h>\n\nint main()\n{\n")
+    index = 0
+    for i in quads:
+        output = ""
+        if(i.getFirst() == "halt"):
+            output = "return 0"
+        elif(i.getFirst() == "jump"):
+            output = "goto L" + str(i.getFourth())
+        elif(i.getFirst() == "out"):
+            output = "printf(\"%d\", " + str(i.getSecond()) + ")"
+        elif(i.getFirst() == ":="):
+            output = str(i.getFourth()) + " = " + str(i.getSecond())
+        elif(i.getFirst() in REL_OP):
+            equal = ""
+            if(i.getFirst() == "="):
+                equal = "="
+            output = "if (" + str(i.getSecond()) + " " + str(i.getFirst()) + equal + " " + str(i.getThird()) + ") goto L" + str(i.getFourth())
+        elif(i.getFirst() in addOperator or i.getFirst() in mulOperator):
+            output = str(i.getFourth()) + " = " + str(i.getSecond()) + " " + str(i.getFirst()) + " " + str(i.getThird())
+        elif(i.getFirst() == "ret"):
+            if(quads[index-1].getFirst() == "call"):
+                index += 1
+                continue
+            output = "return(" + str(i.getFourth()) + ")"
+                
+        if(i.getFirst() not in ["begin_block", "end_block", "par", "call"]):
+            c.write("\tL" + str(i.getId()) + ": " + output + "; // " + str(i) + "\n")
+        index += 1
+    c.write("}")
+    c.close()
+
 class Quad(object):
     def __init__(self, operator, operand1, operand2, target):
         global idCount
@@ -1255,41 +1294,8 @@ def main(argv):
             syntax = Syntax(lex.tokenList)
             token = syntax.getToken()
             sntx = syntax.program()
-            f = open("IR.int", "w")
-            c = open("IR.c", "w")
-            c.write("#include <stdio.h>\n\nint main()\n{\n")
-            index = 0
-            for i in quads:
-                print(i)
-                output = ""
-                if(i.getFirst() == "halt"):
-                    output = "return 0"
-                elif(i.getFirst() == "jump"):
-                    output = "goto L" + str(i.getFourth())
-                elif(i.getFirst() == "out"):
-                    output = "printf(\"%d\", " + str(i.getSecond()) + ")"
-                elif(i.getFirst() == ":="):
-                    output = str(i.getFourth()) + " = " + str(i.getSecond())
-                elif(i.getFirst() in REL_OP):
-                    equal = ""
-                    if(i.getFirst() == "="):
-                        equal = "="
-                    output = "if (" + str(i.getSecond()) + " " + str(i.getFirst()) + equal + " " + str(i.getThird()) + ") goto L" + str(i.getFourth())
-                elif(i.getFirst() in addOperator or i.getFirst() in mulOperator):
-                    output = str(i.getFourth()) + " = " + str(i.getSecond()) + " " + str(i.getFirst()) + " " + str(i.getThird())
-                elif(i.getFirst() == "ret"):
-                    if(quads[index-1].getFirst() == "call"):
-                        index += 1
-                        continue
-                    output = "return(" + str(i.getFourth()) + ")"
-                
-                if(i.getFirst() not in ["begin_block", "end_block", "par", "call"]):
-                    c.write("\tL" + str(i.getId()) + ": " + output + "; // " + str(i) + "\n")
-                f.write(str(i) + "\n")
-                index += 1
-            c.write("}")
-            f.close()
-            c.close()
+            genInt(quads)
+            genC(quads)
 
 
     else:
