@@ -55,6 +55,154 @@ idCount = 1 # 69
 tempCount = 1
 quads = []
 
+lvl = 0
+scopeList = []
+scopeState = []
+
+#pinakas symvolwn
+
+def addScope(name):
+    global lvl
+    global scopeList
+    lvl += 1
+    # scopeList = []
+    scopeList.append(Scope(name, lvl))
+
+
+def popScope():
+    global lvl
+    # scopeList.pop(-1)
+    lvl -= 1
+
+
+def addEntity(name, entityType):
+    # print(scopeList)
+    return scopeList[-1].addEntity(name, entityType)
+
+
+def getEntity(name):
+    for i in scopeList[::-1]:
+        entity = i.getEntity(name)
+        if entity != None:
+            return entity
+    return None
+
+
+def getScope(name):
+    for scope in scopeList:
+        if scope.name == name:
+            return scope
+    return None
+
+
+def saveScope():
+    for scope in scopeList:
+        scopeState.append(
+            '%d %s' % (scope.lvl, ', '.join([i + str(scope.entityList[i]) for i in scope.entityList])))
+    scopeState.append('----------------------------------------------')
+
+
+class Scope(object):
+    def __init__(self, name, lvl):
+        self.name = name
+        self.lvl = lvl
+        self.offset = 12
+        self.entityList = {}
+
+    def addEntity(self, name, entityΤype):
+        if entityΤype == 'VARIABLE':
+            res = self.appendEntity(name, Variable(name, 'VARIABLE', self.offset))
+            self.offset += 4
+            return res
+        if entityΤype == 'in' or entityΤype == 'inout':
+            mode = "cv"
+            if entityΤype == "inout":
+                mode = "ref"
+            res = self.appendEntity(name, Parameter(self.name, entityΤype, mode, self.offset))
+            self.offset += 4
+            return res
+        if entityΤype == 'function':
+            return self.appendEntity(name, Function(name, "function", -1, 0, [], self.offset))
+        if entityΤype == 'procedure':
+            return self.appendEntity(name, Procedure(-1, [], 0, self.name, True))
+        return print('Error on Scope -> addEntity')
+
+    def appendEntity(self, name, entity):
+        if name not in self.entityList and self.name != name:
+            self.entityList[name] = entity
+            return print(lvl, entity)
+        return print('ERROR', ': %s declared more than once in %s' % (name, self.name))
+
+    def getEntity(self, name):
+        if name in self.entityList:
+            return self.entityList[name]
+        return None
+
+
+class Variable(object):
+    def __init__(self, name, datatype, offset):
+        self.name = name
+        self.datatype = datatype
+        self.offset = offset
+
+    def __str__(self):
+        return " {0} / {2} / {1} ".format(self.name, self.datatype, self.offset)
+
+class Parameter(object):
+    def __init__(self, name, datatype, mode, offset):
+        self.name = name
+        self.datatype = datatype
+        self.mode = mode
+        self.offset = offset
+
+    def __str__(self):
+        return " {0} / {1} / {2} ".format(self.name, self.offset, self.mode)
+
+
+class Procedure(object):
+    def __init__(self, name, startingQuad, frameLength, formalParameters):
+        self.name = name
+        self.startingQuad = startingQuad
+        self.frameLength = frameLength
+        self.formalParameters = formalParameters
+
+    def __str__(self):
+        return "{0}".format(self.name)
+
+
+class Function(object):
+    def __init__(self, name, datatype, startingQuad, frameLength, formalParameters, offset):
+        self.name = name
+        self.datatype = datatype
+        self.startingQuad = startingQuad
+        self.frameLength = frameLength
+        self.formalParameters = formalParameters
+        self.offset = offset
+
+    def __str__(self):
+        return "{0} / {1}".format(self.name, self.offset)
+
+
+class FormalParameter(object):
+    def __init__(self, name, datatype, mode):
+        self.name = name
+        self.datatype = datatype
+        self.mode = mode
+
+
+class TemporaryVariable(object):
+    def __init__(self, name, datatype, offset):
+        self.name = name
+        self.datatype = datatype
+        self.offset = offset
+
+
+class SymbolicConstant(object):
+    def __init__(self, name, datatype, value):
+        self.name = name
+        self.datatype = datatype
+        self.value = value
+
 def genInt(quads):
     int = open("IR.int", "w")
     for i in quads:
@@ -138,6 +286,7 @@ def newTemp():
     global tempCount
     temp = "T_" + str(tempCount)
     tempCount += 1
+    addEntity(temp, "VARIABLE")
     return temp
 
 def emptyList():
@@ -407,11 +556,13 @@ class Syntax(object):
         ok = 0
         while self.current.family == "id":
             ok = 1
+            addEntity(self.current.recognized_string, 'VARIABLE')
             needNextId = False
             self.getToken()
             if self.current.recognized_string == ",":
                 needNextId = True
                 self.getToken()
+                addEntity(self.current.recognized_string, 'VARIABLE')
             else:
                 needNextId = False
                 if self.current.recognized_string != ";":
@@ -431,8 +582,11 @@ class Syntax(object):
 
     def subprogram(self):
         if self.current.recognized_string in ["function", "procedure"]:
+            prog = self.current.recognized_string
             self.getToken()
             blockName = self.current.recognized_string
+            addEntity(self.current.recognized_string, prog)
+            addScope(blockName)
             genQuad("begin_block", blockName, "_", "_")
             if self.current.family == "id":
                 self.getToken()
@@ -442,6 +596,8 @@ class Syntax(object):
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if(self.block(1)):
+                                saveScope()
+                                popScope()
                                 genQuad("end_block", blockName, "_", "_")
                                 return True
                             else:
@@ -480,7 +636,9 @@ class Syntax(object):
 
     def formalparitem(self):
         if self.current.recognized_string in ["in", "inout"]:
+            tempInOut = self.current.recognized_string
             self.getToken()
+            addEntity(self.current.recognized_string, tempInOut)
             if self.current.family == "id":
                 return True
             else:
@@ -1259,12 +1417,15 @@ class Syntax(object):
             if self.current.family == "id":
                 global programName
                 programName = self.current.recognized_string
+                addScope(progName)
                 self.getToken()
                 self.block(0)
                 self.getToken()
                 if self.current.recognized_string == ".":
                     self.getToken()
                     if self.endFound:
+                        saveScope()
+                        popScope()
                         genQuad("halt", "_", "_", "_")
                         genQuad("end_block", programName, "_", "_")
                         print("The cimple program got parsed successfully")
