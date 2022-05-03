@@ -51,7 +51,7 @@ allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";
                    "}", ".", "#", "\t", " ", "\n"]
 
 
-idCount = 99 # 69
+idCount = 1 # 69
 tempCount = 1
 quads = []
 
@@ -1256,10 +1256,40 @@ def main(argv):
             token = syntax.getToken()
             sntx = syntax.program()
             f = open("IR.int", "w")
+            c = open("IR.c", "w")
+            c.write("#include <stdio.h>\n\nint main()\n{\n")
+            index = 0
             for i in quads:
                 print(i)
+                output = ""
+                if(i.getFirst() == "halt"):
+                    output = "return 0"
+                elif(i.getFirst() == "jump"):
+                    output = "goto L" + str(i.getFourth())
+                elif(i.getFirst() == "out"):
+                    output = "printf(\"%d\", " + str(i.getSecond()) + ")"
+                elif(i.getFirst() == ":="):
+                    output = str(i.getFourth()) + " = " + str(i.getSecond())
+                elif(i.getFirst() in REL_OP):
+                    equal = ""
+                    if(i.getFirst() == "="):
+                        equal = "="
+                    output = "if (" + str(i.getSecond()) + " " + str(i.getFirst()) + equal + " " + str(i.getThird()) + ") goto L" + str(i.getFourth())
+                elif(i.getFirst() in addOperator or i.getFirst() in mulOperator):
+                    output = str(i.getFourth()) + " = " + str(i.getSecond()) + " " + str(i.getFirst()) + " " + str(i.getThird())
+                elif(i.getFirst() == "ret"):
+                    if(quads[index-1].getFirst() == "call"):
+                        index += 1
+                        continue
+                    output = "return(" + str(i.getFourth()) + ")"
+                
+                if(i.getFirst() not in ["begin_block", "end_block", "par", "call"]):
+                    c.write("\tL" + str(i.getId()) + ": " + output + "; // " + str(i) + "\n")
                 f.write(str(i) + "\n")
+                index += 1
+            c.write("}")
             f.close()
+            c.close()
 
 
     else:
