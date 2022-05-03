@@ -50,158 +50,13 @@ allComplex = [item for sublist in dictComplex.values() for item in sublist]
 allowedAlphabet = ["+", "-", "*", "/", "<", ">", "=", "<=", ">=", "<>", ":=", ";", ",", ":", "[", "]", "(", ")", "{",
                    "}", ".", "#", "\t", " ", "\n"]
 
-
-idCount = 1 # 69
+idCount = 1
 tempCount = 1
 quads = []
 
 lvl = 0
 scopeList = []
 scopeState = []
-
-#pinakas symvolwn
-
-def addScope(name):
-    global lvl
-    global scopeList
-    lvl += 1
-    # scopeList = []
-    scopeList.append(Scope(name, lvl))
-
-
-def popScope():
-    global lvl
-    # scopeList.pop(-1)
-    lvl -= 1
-
-
-def addEntity(name, entityType):
-    # print(scopeList)
-    return scopeList[-1].addEntity(name, entityType)
-
-
-def getEntity(name):
-    for i in scopeList[::-1]:
-        entity = i.getEntity(name)
-        if entity != None:
-            return entity
-    return None
-
-
-def getScope(name):
-    for scope in scopeList:
-        if scope.name == name:
-            return scope
-    return None
-
-
-def saveScope():
-    for scope in scopeList:
-        scopeState.append(
-            '%d %s' % (scope.lvl, ', '.join([i + str(scope.entityList[i]) for i in scope.entityList])))
-    scopeState.append('----------------------------------------------')
-
-
-class Scope(object):
-    def __init__(self, name, lvl):
-        self.name = name
-        self.lvl = lvl
-        self.offset = 12
-        self.entityList = {}
-
-    def addEntity(self, name, entityΤype):
-        if entityΤype == 'VARIABLE':
-            res = self.appendEntity(name, Variable(name, 'VARIABLE', self.offset))
-            self.offset += 4
-            return res
-        if entityΤype == 'in' or entityΤype == 'inout':
-            mode = "cv"
-            if entityΤype == "inout":
-                mode = "ref"
-            res = self.appendEntity(name, Parameter(self.name, entityΤype, mode, self.offset))
-            self.offset += 4
-            return res
-        if entityΤype == 'function':
-            return self.appendEntity(name, Function(name, "function", -1, 0, [], self.offset))
-        if entityΤype == 'procedure':
-            return self.appendEntity(name, Procedure(-1, [], 0, self.name, True))
-        return print('Error on Scope -> addEntity')
-
-    def appendEntity(self, name, entity):
-        if name not in self.entityList and self.name != name:
-            self.entityList[name] = entity
-            return print(lvl, entity)
-        return print('ERROR', ': %s declared more than once in %s' % (name, self.name))
-
-    def getEntity(self, name):
-        if name in self.entityList:
-            return self.entityList[name]
-        return None
-
-
-class Variable(object):
-    def __init__(self, name, datatype, offset):
-        self.name = name
-        self.datatype = datatype
-        self.offset = offset
-
-    def __str__(self):
-        return " {0} / {2} / {1} ".format(self.name, self.datatype, self.offset)
-
-class Parameter(object):
-    def __init__(self, name, datatype, mode, offset):
-        self.name = name
-        self.datatype = datatype
-        self.mode = mode
-        self.offset = offset
-
-    def __str__(self):
-        return " {0} / {1} / {2} ".format(self.name, self.offset, self.mode)
-
-
-class Procedure(object):
-    def __init__(self, name, startingQuad, frameLength, formalParameters):
-        self.name = name
-        self.startingQuad = startingQuad
-        self.frameLength = frameLength
-        self.formalParameters = formalParameters
-
-    def __str__(self):
-        return "{0}".format(self.name)
-
-
-class Function(object):
-    def __init__(self, name, datatype, startingQuad, frameLength, formalParameters, offset):
-        self.name = name
-        self.datatype = datatype
-        self.startingQuad = startingQuad
-        self.frameLength = frameLength
-        self.formalParameters = formalParameters
-        self.offset = offset
-
-    def __str__(self):
-        return "{0} / {1}".format(self.name, self.offset)
-
-
-class FormalParameter(object):
-    def __init__(self, name, datatype, mode):
-        self.name = name
-        self.datatype = datatype
-        self.mode = mode
-
-
-class TemporaryVariable(object):
-    def __init__(self, name, datatype, offset):
-        self.name = name
-        self.datatype = datatype
-        self.offset = offset
-
-
-class SymbolicConstant(object):
-    def __init__(self, name, datatype, value):
-        self.name = name
-        self.datatype = datatype
-        self.value = value
 
 def genInt(quads):
     int = open("IR.int", "w")
@@ -242,7 +97,115 @@ def genC(quads):
         index += 1
     c.write("}")
     c.close()
+    
+def symbTable():
+    scopeId = 0
+    st = open("IR.symb", "w")
+    for i in scopeList:
+        tmpStr = "Number of levels currently: " + str(i.lvl) + "\nEntityList of Scope @ Level " + str(scopeId) + ":"
+        for j in i.entityList:
+            tmpStr += " (" + str(i.entityList[j]) + "),"
+        tmpStr = tmpStr[:-1] + "\n\n"
+        st.write(tmpStr)
+        scopeId += 1
+    st.close()
 
+#pinakas symvolwn
+def addScope(name):
+    global lvl
+    global scopeList
+    lvl += 1
+    scope = Scope(name, lvl)
+    scopeList.append(scope)
+
+def popScope():
+    global lvl
+    lvl -= 1
+
+def addEntity(name, entityType):
+    return scopeList[lvl-1].addEntity(name, entityType)
+    
+def getScope(name):
+    for scope in scopeList:
+        if scope.name == name:
+            return scope
+    return None
+
+class Scope(object):
+    def __init__(self, name, lvl):
+        self.name = name
+        self.lvl = lvl
+        self.offset = 12
+        self.entityList = {}
+
+    def addEntity(self, name, entityΤype):
+        entity = ""
+        if entityΤype == "VARIABLE":
+            entity = Variable(name, "VARIABLE", self.offset)
+        if entityΤype in ["in","inout"]:
+            mode = "cv"
+            if entityΤype == "inout":
+                mode = "ref"
+            entity = Parameter(name, entityΤype, mode, self.offset)
+        if entityΤype == 'function':
+            entity = Function(name, "function", -1, 0, [], self.offset)
+        if entityΤype == 'procedure':
+            entity = Procedure(name, -1, 0, [])
+            
+        if(entity != ""):
+            self.appendEntity(name, entity)
+
+    def appendEntity(self, name, entity):
+        if name not in self.entityList:
+            if(self.name != name):
+                self.entityList[name] = entity
+                self.offset += 4
+
+class Variable(object):
+    def __init__(self, name, datatype, offset):
+        self.name = name
+        self.datatype = datatype
+        self.offset = offset
+
+    def __str__(self):
+        if(self.datatype == "VARIABLE"):
+            return " {0} / {1} ".format(self.name, self.offset)
+        else:
+            return " {0} / {1} / {2} ".format(self.name, self.offset, self.datatype)
+
+class Parameter(object):
+    def __init__(self, name, datatype, mode, offset):
+        self.name = name
+        self.datatype = datatype
+        self.mode = mode
+        self.offset = offset
+
+    def __str__(self):
+        return " {0} / {1} / {2} ".format(self.name, self.offset, self.mode)
+
+class Procedure(object):
+    def __init__(self, name, startingQuad, frameLength, formalParameters):
+        self.name = name
+        self.startingQuad = startingQuad
+        self.frameLength = frameLength
+        self.formalParameters = formalParameters
+
+    def __str__(self):
+        return "{0}".format(self.name)
+
+class Function(object):
+    def __init__(self, name, datatype, startingQuad, frameLength, formalParameters, offset):
+        self.name = name
+        self.datatype = datatype
+        self.startingQuad = startingQuad
+        self.frameLength = frameLength
+        self.formalParameters = formalParameters
+        self.offset = offset
+
+    def __str__(self):
+        return "{0} / {1}".format(self.name, self.offset)
+
+#endiamesos kwdikas
 class Quad(object):
     def __init__(self, operator, operand1, operand2, target):
         global idCount
@@ -305,6 +268,7 @@ def backpatch(list, label):
             if j.idCount == i:
                 j.target = label
 
+#token
 class Token(object):
     def __init__(self, recognized_string, family, line_number):
         self.recognized_string = recognized_string
@@ -321,14 +285,13 @@ class Error(object):
         print("Syntax error @ line " + str(syntax.current.line_number) + " with message: '" + str(message) + "'")
         sys.exit()
 
-
+#lektikos analytis
 class LexError(object):
     def __init__(self, lex, message):
         lex.errFound = True
         lex.endFound = True
         print("Lexical error @ line " + str(lex.line - 1) + " with message: '" + str(message) + "'")
         sys.exit()
-
 
 class Lexer(object):
     def __init__(self, stream):
@@ -413,7 +376,6 @@ class Lexer(object):
         if self.current.isnumeric():
             tmp = []
             while (self.current != " " and self.current != "\n" and self.current not in delimiter):
-
                 if self.current.isnumeric():
                     tmp.append(self.current)
                     self.getChar()
@@ -492,7 +454,7 @@ class Lexer(object):
 
         return result
 
-
+#syntaktikos analytis
 class Syntax(object):
     def __init__(self, stream):
         self.stream = stream
@@ -556,13 +518,13 @@ class Syntax(object):
         ok = 0
         while self.current.family == "id":
             ok = 1
-            addEntity(self.current.recognized_string, 'VARIABLE')
+            addEntity(self.current.recognized_string, "VARIABLE")
             needNextId = False
             self.getToken()
             if self.current.recognized_string == ",":
                 needNextId = True
                 self.getToken()
-                addEntity(self.current.recognized_string, 'VARIABLE')
+                addEntity(self.current.recognized_string, "VARIABLE")
             else:
                 needNextId = False
                 if self.current.recognized_string != ";":
@@ -596,7 +558,6 @@ class Syntax(object):
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if(self.block(1)):
-                                saveScope()
                                 popScope()
                                 genQuad("end_block", blockName, "_", "_")
                                 return True
@@ -1121,8 +1082,8 @@ class Syntax(object):
         if self.boolterm():
             if(self.current.recognized_string == "or"):
                 global trueList
-                
                 global falseList
+                
                 while self.current.recognized_string == "or":
                     if(len(falseList) != 0):
                         for i in range(0,len(falseList)):
@@ -1147,6 +1108,7 @@ class Syntax(object):
             if(self.current.recognized_string == "and"):
                 while self.current.recognized_string == "and":
                     self.getToken()
+                    
                     if self.boolfactor():
                         continue
                     else:
@@ -1417,14 +1379,13 @@ class Syntax(object):
             if self.current.family == "id":
                 global programName
                 programName = self.current.recognized_string
-                addScope(progName)
+                addScope(programName)
                 self.getToken()
                 self.block(0)
                 self.getToken()
                 if self.current.recognized_string == ".":
                     self.getToken()
                     if self.endFound:
-                        saveScope()
                         popScope()
                         genQuad("halt", "_", "_", "_")
                         genQuad("end_block", programName, "_", "_")
@@ -1460,6 +1421,7 @@ def main(argv):
             sntx = syntax.program()
             genInt(quads)
             genC(quads)
+            symbTable()
 
 
     else:
