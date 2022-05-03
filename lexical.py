@@ -61,14 +61,16 @@ scopeState = []
 def genInt(quads):
     int = open("IR.int", "w")
     for i in quads:
-        print(str(i))
         int.write(str(i) + "\n")
+    print(">IR got saved to file.")
     int.close()
     
 def genC(quads):
     c = open("IR.c", "w")
+    intList = []
     c.write("#include <stdio.h>\n\nint main()\n{\n")
     index = 0
+    contents = ""
     for i in quads:
         output = ""
         if(i.getFirst() == "halt"):
@@ -79,23 +81,40 @@ def genC(quads):
             output = "printf(\"%d\", " + str(i.getSecond()) + ")"
         elif(i.getFirst() == ":="):
             output = str(i.getFourth()) + " = " + str(i.getSecond())
+            if(not i.getFourth().isnumeric() and i.getFourth() not in intList):
+                intList.append(i.getFourth())
+            if(not i.getSecond().isnumeric() and i.getSecond() not in intList):
+                intList.append(i.getSecond())
         elif(i.getFirst() in REL_OP):
             equal = ""
             if(i.getFirst() == "="):
                 equal = "="
             output = "if (" + str(i.getSecond()) + " " + str(i.getFirst()) + equal + " " + str(i.getThird()) + ") goto L" + str(i.getFourth())
+            if(not i.getThird().isnumeric() and i.getThird() not in intList):
+                intList.append(i.getThird())
+            if(not i.getSecond().isnumeric() and i.getSecond() not in intList):
+                intList.append(i.getSecond())
         elif(i.getFirst() in addOperator or i.getFirst() in mulOperator):
             output = str(i.getFourth()) + " = " + str(i.getSecond()) + " " + str(i.getFirst()) + " " + str(i.getThird())
+            if(not i.getFourth().isnumeric() and i.getFourth() not in intList):
+                intList.append(i.getFourth())
+            if(not i.getSecond().isnumeric() and i.getSecond() not in intList):
+                intList.append(i.getSecond())
         elif(i.getFirst() == "ret"):
             if(quads[index-1].getFirst() == "call"):
                 index += 1
                 continue
+            if(not i.getFourth().isnumeric() and i.getFourth() not in intList):
+                intList.append(i.getFourth())
             output = "return(" + str(i.getFourth()) + ")"
                 
         if(i.getFirst() not in ["begin_block", "end_block", "par", "call"]):
-            c.write("\tL" + str(i.getId()) + ": " + output + "; // " + str(i) + "\n")
+            contents += "\tL" + str(i.getId()) + ": " + output + "; // " + str(i) + "\n"
         index += 1
+    c.write("\tint " + ", ".join(map(str, intList)) + ";\n")
+    c.write(contents)
     c.write("}")
+    print(">C code got saved to file.")
     c.close()
     
 def symbTable():
@@ -108,6 +127,7 @@ def symbTable():
         tmpStr = tmpStr[:-1] + "\n\n"
         st.write(tmpStr)
         scopeId += 1
+    print(">Symbol table got saved to file.")
     st.close()
 
 #pinakas symvolwn
