@@ -123,7 +123,7 @@ def genC(quads):
 
 def symbTable():
     scopeId = 0
-    st = open("IR.symb", "w")
+    st = open("ST.symb", "w")
     for i in scopeList:
         tmpStr = "Number of levels currently: " + str(i.lvl) + "\nEntityList of Scope @ Level " + str(scopeId) + ":"
         for j in i.entityList:
@@ -133,6 +133,12 @@ def symbTable():
         scopeId += 1
     print(">Symbol table got saved to file.")
     st.close()
+
+def finalCode():
+    fc = open("FC.asm", "w")
+    fc.write(FC)
+    print(">Final code got saved to file.")
+    fc.close()
 
 # telikos kwdikas
 def finalCodeCases(ismain):
@@ -242,11 +248,11 @@ def finalCodeCases(ismain):
             produce("ecall")
 
 def generateFinalCode(ismain):
-    global final_code
+    global FC
     if ismain:
         genLabel()
-        final_code += "\tj L_main\n"
-        final_code += "L_main:\n"
+        FC += "\tj L_main\n"
+        FC += "L_main:\n"
         produce("addi sp, sp, " + str(scopeList[-1].offset))
         produce("mv gp, sp")
     else:
@@ -255,14 +261,14 @@ def generateFinalCode(ismain):
     finalCodeCases(ismain)
 
 def genLabel():
-    global final_code
-    global label_num
-    final_code += "L_" + str(label_num) + ":\n"
-    label_num += 1
+    global FC
+    global labelNum
+    FC += "L_" + str(labelNum) + ":\n"
+    labelNum += 1
 
 def produce(line):
-    global final_code
-    final_code += "\t" + line + "\n"
+    global FC
+    FC += "\t" + line + "\n"
 
 def loadvr(var, reg):
     if var.isnumeric() or var[0] in addOperator:
@@ -1586,10 +1592,10 @@ class Syntax(object):
 
 def main(argv):
     form = argv
-    global final_code
-    final_code = ''
-    global label_num
-    label_num = 0
+    global FC
+    FC = ''
+    global labelNum
+    labelNum = 0
 
     if form is not None:
         lex = Lexer(form)
@@ -1612,6 +1618,7 @@ def main(argv):
             genInt(quads)
             genC(quads)
             symbTable()
+            finalCode()
 
 
     else:
