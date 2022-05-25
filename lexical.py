@@ -58,13 +58,15 @@ lvl = 0
 scopeList = []
 scopeState = []
 
+
 def genInt(quads):
     int = open("IR.int", "w")
     for i in quads:
         int.write(str(i) + "\n")
     print(">IR got saved to file.")
     int.close()
-    
+
+
 def genC(quads):
     c = open("IR.c", "w")
     intList = []
@@ -73,42 +75,43 @@ def genC(quads):
     contents = ""
     for i in quads:
         output = ""
-        if(i.getFirst() == "halt"):
+        if (i.getFirst() == "halt"):
             output = "return 0"
-        elif(i.getFirst() == "jump"):
+        elif (i.getFirst() == "jump"):
             output = "goto L" + str(i.getFourth())
-        elif(i.getFirst() == "out"):
+        elif (i.getFirst() == "out"):
             output = "printf(\"%d\", " + str(i.getSecond()) + ")"
-        elif(i.getFirst() == ":="):
+        elif (i.getFirst() == ":="):
             output = str(i.getFourth()) + " = " + str(i.getSecond())
-            if(not str(i.getFourth()).isnumeric() and i.getFourth() not in intList):
+            if (not str(i.getFourth()).isnumeric() and i.getFourth() not in intList):
                 intList.append(i.getFourth())
-            if(not str(i.getSecond()).isnumeric() and i.getSecond() not in intList):
+            if (not str(i.getSecond()).isnumeric() and i.getSecond() not in intList):
                 intList.append(i.getSecond())
-        elif(i.getFirst() in REL_OP):
+        elif (i.getFirst() in REL_OP):
             equal = ""
-            if(i.getFirst() == "="):
+            if (i.getFirst() == "="):
                 equal = "="
-            output = "if (" + str(i.getSecond()) + " " + str(i.getFirst()) + equal + " " + str(i.getThird()) + ") goto L" + str(i.getFourth())
-            if(not str(i.getThird().isnumeric()) and i.getThird() not in intList):
+            output = "if (" + str(i.getSecond()) + " " + str(i.getFirst()) + equal + " " + str(
+                i.getThird()) + ") goto L" + str(i.getFourth())
+            if (not str(i.getThird().isnumeric()) and i.getThird() not in intList):
                 intList.append(i.getThird())
-            if(not str(i.getSecond().isnumeric()) and i.getSecond() not in intList):
+            if (not str(i.getSecond().isnumeric()) and i.getSecond() not in intList):
                 intList.append(i.getSecond())
-        elif(i.getFirst() in addOperator or i.getFirst() in mulOperator):
+        elif (i.getFirst() in addOperator or i.getFirst() in mulOperator):
             output = str(i.getFourth()) + " = " + str(i.getSecond()) + " " + str(i.getFirst()) + " " + str(i.getThird())
-            if(not str(i.getFourth().isnumeric()) and i.getFourth() not in intList):
+            if (not str(i.getFourth().isnumeric()) and i.getFourth() not in intList):
                 intList.append(i.getFourth())
-            if(not str(i.getSecond().isnumeric()) and i.getSecond() not in intList):
+            if (not str(i.getSecond().isnumeric()) and i.getSecond() not in intList):
                 intList.append(i.getSecond())
-        elif(i.getFirst() == "ret"):
-            if(quads[index-1].getFirst() == "call"):
+        elif (i.getFirst() == "ret"):
+            if (quads[index - 1].getFirst() == "call"):
                 index += 1
                 continue
-            if(not str(i.getFourth().isnumeric()) and i.getFourth() not in intList):
+            if (not str(i.getFourth().isnumeric()) and i.getFourth() not in intList):
                 intList.append(i.getFourth())
             output = "return(" + str(i.getFourth()) + ")"
-                
-        if(i.getFirst() not in ["begin_block", "end_block", "par", "call"]):
+
+        if (i.getFirst() not in ["begin_block", "end_block", "par", "call"]):
             contents += "\tL" + str(i.getId()) + ": " + output + "; // " + str(i) + "\n"
         index += 1
     c.write("\tint " + ", ".join(map(str, intList)) + ";\n")
@@ -116,7 +119,8 @@ def genC(quads):
     c.write("}")
     print(">C code got saved to file.")
     c.close()
-    
+
+
 def symbTable():
     scopeId = 0
     st = open("IR.symb", "w")
@@ -130,7 +134,147 @@ def symbTable():
     print(">Symbol table got saved to file.")
     st.close()
 
-#pinakas symvolwn
+# telikos kwdikas
+def finalCodeCases(ismain):
+    relOps = ["=", "<>", ">", "<", ">=", "<="]
+    operators = ["+", "-", "*", "/"]
+    parList = []
+    hasRet = False
+
+    for quad in quads:
+        op = quad.operator
+        op1 = quad.operand1
+        op2 = quad.operand2
+        res = quad.target
+        if op in relOps:
+            genLabel()
+            loadvr(op1, "t1")
+            loadvr(op2, "t2")
+            if op == "=":
+                code = "beq"
+            elif op == "<>":
+                code = "bne"
+            elif op == ">":
+                code = "bgt"
+            elif op == "<":
+                code = "blt"
+            elif op == ">=":
+                code = "bge"
+            elif op == "<=":
+                code = "ble"
+            produce(str(code) + " t1, t2, L_" + str(res))
+        if op == ":=":
+            genLabel()
+            loadvr(op1, "t1")
+            storerv(res, "t1")
+        if op in operators:
+            genLabel()
+            loadvr(op1, "t1")
+            loadvr(op2, "t2")
+            if op == "+":
+                code = "add"
+            elif op == "-":
+                code = "sub"
+            elif op == "*":
+                code = "mul"
+            elif op == "/":
+                code = "div"
+            produce(str(code) + " t1, t1, t2")
+            storerv(res, "t1")
+        if op == "out":
+            genLabel()
+            loadvr(op1, "a0")
+            produce("li a7, 1")
+            produce("ecall")
+        if op == "input":
+            genLabel()
+            produce("li a7, 5")
+            produce("ecall")
+            storerv(op1, "a0")
+        if op == "ret":
+            genLabel()
+            loadvr(res, "t1")
+            produce("lw t0,-8(sp)")
+            produce("sw t1, (t0)")
+            produce("lw ra,(sp)")
+            produce("jr ra")
+            hasRet = True
+        if op == "par":
+            parList.append(quad)
+        if op == "call":
+            genLabel()
+            produce("addi fp, sp, 0")
+            parCount = 1
+
+            for par in parList:
+                d = 12 + (parCount - 1) * 4
+
+                if parCount > 0:
+                    genLabel()
+                if par[2] == "CV":
+                    loadvr(par[1], "t0")
+                else:
+                    produce("addi t0, sp, -" + str(d))
+                    produce("sw t0, -" + str(d) + "(fp)")
+                if par[2] == "RET":
+                    produce("addi t0, sp, -" + str(d))
+                    produce("sw t0, -8(fp)")
+                parCount += 1
+            d += 4
+
+            produce("addi fp, sp, " + str(d))
+            if ismain:
+                produce("lw t0, -4(sp)")
+                produce("sw t0, -4(fp)")
+            else:
+                produce("sw sp, -4(fp)")
+
+            produce("addi fp, sp, " + str(d))
+            produce("jal L_" + str(res))
+            produce("addi fp, sp, -" + str(d))
+        if op == "jump":
+            genLabel()
+            produce("b L_" + str(res))
+        if op == "halt":
+            genLabel()
+            produce("li a0, 0")
+            produce("li a7, 93")
+            produce("ecall")
+
+def generateFinalCode(ismain):
+    global final_code
+    if ismain:
+        genLabel()
+        final_code += "\tj L_main\n"
+        final_code += "L_main:\n"
+        produce("addi sp, sp, " + str(scopeList[-1].offset))
+        produce("mv gp, sp")
+    else:
+        genLabel()
+        produce("sw ra, (sp)")
+    finalCodeCases(ismain)
+
+def genLabel():
+    global final_code
+    global label_num
+    final_code += "L_" + str(label_num) + ":\n"
+    label_num += 1
+
+def produce(line):
+    global final_code
+    final_code += "\t" + line + "\n"
+
+def loadvr(var, reg):
+    if var.isnumeric() or var[0] in addOperator:
+        produce("li " + str(reg) + ", " + str(var))
+        return False
+    produce("lw " + str(reg) + ", (t0)")
+
+def storerv(var, reg):
+    produce("sw " + str(reg) + ", (t0)")
+
+
+# pinakas symvolwn
 def addScope(name):
     global lvl
     global scopeList
@@ -138,18 +282,22 @@ def addScope(name):
     scope = Scope(name, lvl)
     scopeList.append(scope)
 
+
 def popScope():
     global lvl
     lvl -= 1
 
+
 def addEntity(name, entityType):
-    return scopeList[lvl-1].addEntity(name, entityType)
-    
+    return scopeList[lvl - 1].addEntity(name, entityType)
+
+
 def getScope(name):
     for scope in scopeList:
         if scope.name == name:
             return scope
     return None
+
 
 class Scope(object):
     def __init__(self, name, lvl):
@@ -162,7 +310,7 @@ class Scope(object):
         entity = ""
         if entityΤype == "VARIABLE":
             entity = Variable(name, "VARIABLE", self.offset)
-        if entityΤype in ["in","inout"]:
+        if entityΤype in ["in", "inout"]:
             mode = "cv"
             if entityΤype == "inout":
                 mode = "ref"
@@ -171,15 +319,16 @@ class Scope(object):
             entity = Function(name, "function", -1, 0, [], self.offset)
         if entityΤype == 'procedure':
             entity = Procedure(name, -1, 0, [])
-            
-        if(entity != ""):
+
+        if (entity != ""):
             self.appendEntity(name, entity)
 
     def appendEntity(self, name, entity):
         if name not in self.entityList:
-            if(self.name != name):
+            if (self.name != name):
                 self.entityList[name] = entity
                 self.offset += 4
+
 
 class Variable(object):
     def __init__(self, name, datatype, offset):
@@ -188,10 +337,11 @@ class Variable(object):
         self.offset = offset
 
     def __str__(self):
-        if(self.datatype == "VARIABLE"):
+        if (self.datatype == "VARIABLE"):
             return " {0} / {1} ".format(self.name, self.offset)
         else:
             return " {0} / {1} / {2} ".format(self.name, self.offset, self.datatype)
+
 
 class Parameter(object):
     def __init__(self, name, datatype, mode, offset):
@@ -203,6 +353,7 @@ class Parameter(object):
     def __str__(self):
         return " {0} / {1} / {2} ".format(self.name, self.offset, self.mode)
 
+
 class Procedure(object):
     def __init__(self, name, startingQuad, frameLength, formalParameters):
         self.name = name
@@ -212,6 +363,7 @@ class Procedure(object):
 
     def __str__(self):
         return "{0}".format(self.name)
+
 
 class Function(object):
     def __init__(self, name, datatype, startingQuad, frameLength, formalParameters, offset):
@@ -225,7 +377,8 @@ class Function(object):
     def __str__(self):
         return "{0} / {1}".format(self.name, self.offset)
 
-#endiamesos kwdikas
+
+# endiamesos kwdikas
 class Quad(object):
     def __init__(self, operator, operand1, operand2, target):
         global idCount
@@ -234,24 +387,24 @@ class Quad(object):
         self.operand1 = operand1
         self.operand2 = operand2
         self.target = target
-        idCount +=1
+        idCount += 1
         quads.append(self)
 
     def changeTarget(self, label):
         self.target = label
-        
+
     def getId(self):
         return self.idCount
-        
+
     def getFirst(self):
         return self.operator
-        
+
     def getSecond(self):
         return self.operand1
-        
+
     def getThird(self):
         return self.operand2
-        
+
     def getFourth(self):
         return self.target
 
@@ -262,8 +415,10 @@ class Quad(object):
 def genQuad(operator, operand1, operand2, operand3):
     return Quad(operator, operand1, operand2, operand3)
 
+
 def nextQuad():
     return idCount
+
 
 def newTemp():
     global tempCount
@@ -272,15 +427,19 @@ def newTemp():
     addEntity(temp, "VARIABLE")
     return temp
 
+
 def emptyList():
     return []
+
 
 def makeList(label):
     return [label]
 
+
 def mergeList(list1, list2):
-    newList = list1+list2
+    newList = list1 + list2
     return newList
+
 
 def backpatch(list, label):
     for i in list:
@@ -288,7 +447,8 @@ def backpatch(list, label):
             if j.idCount == i:
                 j.target = label
 
-#token
+
+# token
 class Token(object):
     def __init__(self, recognized_string, family, line_number):
         self.recognized_string = recognized_string
@@ -305,13 +465,15 @@ class Error(object):
         print("Syntax error @ line " + str(syntax.current.line_number) + " with message: '" + str(message) + "'")
         sys.exit()
 
-#lektikos analytis
+
+# lektikos analytis
 class LexError(object):
     def __init__(self, lex, message):
         lex.errFound = True
         lex.endFound = True
         print("Lexical error @ line " + str(lex.line - 1) + " with message: '" + str(message) + "'")
         sys.exit()
+
 
 class Lexer(object):
     def __init__(self, stream):
@@ -474,7 +636,8 @@ class Lexer(object):
 
         return result
 
-#syntaktikos analytis
+
+# syntaktikos analytis
 class Syntax(object):
     def __init__(self, stream):
         self.stream = stream
@@ -510,13 +673,13 @@ class Syntax(object):
             self.getToken()
             self.declarations()
             self.subprograms()
-            if(flag == 0):
+            if (flag == 0):
                 genQuad("begin_block", programName, "_", "_")
             self.blockstatements()
             if self.current.recognized_string == "}":
                 return True
             else:
-                if(self.stream[self.offset-1].recognized_string == "}"):
+                if (self.stream[self.offset - 1].recognized_string == "}"):
                     return True
                 Error(self, "Error, block end not found")
         else:
@@ -526,7 +689,7 @@ class Syntax(object):
     def declarations(self):
         while self.current.recognized_string == "declare":
             self.getToken()
-            
+
             self.varlist()
 
             if self.current.recognized_string != ";":
@@ -554,12 +717,12 @@ class Syntax(object):
         if (needNextId == True):
             Error(self, "Error, comma delimiter without next id")
 
-        if(ok == 1):
+        if (ok == 1):
             return True
 
     def subprograms(self):
         while (self.subprogram()):
-            if(self.current.recognized_string not in keywords):
+            if (self.current.recognized_string not in keywords):
                 self.getToken()
 
     def subprogram(self):
@@ -574,10 +737,11 @@ class Syntax(object):
                 self.getToken()
                 if self.current.recognized_string == "(":
                     self.getToken()
-                    if(self.formalparlist()):
+                    if (self.formalparlist()):
                         if self.current.recognized_string == ")":
                             self.getToken()
-                            if(self.block(1)):
+                            if (self.block(1)):
+                                self.generateFinalCode(False)
                                 popScope()
                                 genQuad("end_block", blockName, "_", "_")
                                 return True
@@ -609,10 +773,10 @@ class Syntax(object):
         if (needNextItem == True and self.current.recognized_string != ")"):
             Error(self, "Error, comma delimiter without next item")
             return False
-        if(self.current.recognized_string == ")"):
+        if (self.current.recognized_string == ")"):
             ok = 1
-            
-        if(ok == 1):
+
+        if (ok == 1):
             return True
 
     def formalparitem(self):
@@ -627,24 +791,24 @@ class Syntax(object):
                 return False
         else:
             return False
-            
+
     def statements(self):
         global wListFalse
         wListFalse = []
         global wListTrue
         wListTrue = []
         stat = self.statement()
-        if(stat):
-            while(stat):
-                if(self.offset + 1 < len(self.stream)):
-                    if(self.stream[self.offset+1].recognized_string == ";"):
+        if (stat):
+            while (stat):
+                if (self.offset + 1 < len(self.stream)):
+                    if (self.stream[self.offset + 1].recognized_string == ";"):
                         self.getToken()
                 if self.current.recognized_string == ";":
                     self.getToken()
                     stat = self.statement()
                 else:
-                    if(self.current.recognized_string == "}"):
-                        if(self.stream[self.offset+1].recognized_string == "}"):
+                    if (self.current.recognized_string == "}"):
+                        if (self.stream[self.offset + 1].recognized_string == "}"):
                             self.getToken()
                         return True
                     Error(self, "statement error")
@@ -654,16 +818,16 @@ class Syntax(object):
             if self.current.recognized_string == "{":
                 self.getToken()
                 self.blockstatements()
-                if(self.stream[self.offset-1].recognized_string == "}"):
+                if (self.stream[self.offset - 1].recognized_string == "}"):
                     return True
                 if self.current.recognized_string == "}":
                     return True
                 else:
                     Error(self, "no closing bracket found")
                     return False
-            if(self.current.recognized_string == ";"):
+            if (self.current.recognized_string == ";"):
                 return True
-                
+
         Error(self, "invalid statements format")
         return False
 
@@ -673,37 +837,37 @@ class Syntax(object):
                                               "input", "print"] or self.current.family == "id":
             ok = 1
             if self.current.recognized_string == "if":
-                if(not self.ifStat()):
+                if (not self.ifStat()):
                     ok = -1
             elif self.current.recognized_string == "while":
-                if(not self.whileStat()):
+                if (not self.whileStat()):
                     ok = -1
             elif self.current.recognized_string == "switchcase":
-                if(not self.switchcaseStat()):
+                if (not self.switchcaseStat()):
                     ok = -1
             elif self.current.recognized_string == "forcase":
-                if(not self.forcaseStat()):
+                if (not self.forcaseStat()):
                     ok = -1
             elif self.current.recognized_string == "incase":
-                if(not self.incaseStat()):
+                if (not self.incaseStat()):
                     ok = -1
             elif self.current.recognized_string == "call":
-                if(not self.callStat()):
+                if (not self.callStat()):
                     ok = -1
             elif self.current.recognized_string == "return":
-                if(not self.returnStat()):
+                if (not self.returnStat()):
                     ok = -1
             elif self.current.recognized_string == "input":
-                if(not self.inputStat()):
+                if (not self.inputStat()):
                     ok = -1
             elif self.current.recognized_string == "print":
-                if(not self.printStat()):
+                if (not self.printStat()):
                     ok = -1
             else:
-                if(not self.assignStat()):
+                if (not self.assignStat()):
                     ok = -1
 
-            if(ok in [0,1]):
+            if (ok in [0, 1]):
                 return True
         return False
 
@@ -714,18 +878,19 @@ class Syntax(object):
             if self.current.recognized_string == ":=":
                 self.getToken()
                 tmpVar = self.current.recognized_string
-                
+
                 if self.expression():
                     src = tmpVar
-                    if(not src.isnumeric()):
-                        src = quads[len(quads)-1].getFourth()
-                        if(quads[len(quads)-1].getFirst() in ["in", "inout"]):
-                            src = quads[len(quads)-1].getSecond()
-                        if(src == "_"):
-                            if(quads[len(quads)-2].getFirst() == "par"):
-                                src = quads[len(quads)-2].getSecond()
-                    if(quads[len(quads)-1].getFirst() in addOperator or quads[len(quads)-1].getFirst() in mulOperator):
-                        src = quads[len(quads)-1].getFourth()
+                    if (not src.isnumeric()):
+                        src = quads[len(quads) - 1].getFourth()
+                        if (quads[len(quads) - 1].getFirst() in ["in", "inout"]):
+                            src = quads[len(quads) - 1].getSecond()
+                        if (src == "_"):
+                            if (quads[len(quads) - 2].getFirst() == "par"):
+                                src = quads[len(quads) - 2].getSecond()
+                    if (quads[len(quads) - 1].getFirst() in addOperator or quads[
+                        len(quads) - 1].getFirst() in mulOperator):
+                        src = quads[len(quads) - 1].getFourth()
                     genQuad(":=", src, "_", target)
                     return True
                 else:
@@ -759,11 +924,11 @@ class Syntax(object):
                             ifList = makeList(nextQuad())
                             genQuad("jump", "_", "_", "_")
                             backpatch(tmpIFlstfalse, nextQuad())
-                            if(self.stream[self.offset+1].recognized_string == "else"):
+                            if (self.stream[self.offset + 1].recognized_string == "else"):
                                 self.getToken()
                             if self.elsepart(ifList):
-                                trueList =[]
-                                falseList =[]
+                                trueList = []
+                                falseList = []
                                 return True
                             else:
                                 Error(self, "elsepart not found")
@@ -777,7 +942,7 @@ class Syntax(object):
                 Error(self, "starting parenthesis not found on ifStat")
         return False
 
-    def elsepart(self,ifList):
+    def elsepart(self, ifList):
         if self.current.recognized_string == "else":
             self.getToken()
             if self.statements():
@@ -809,7 +974,7 @@ class Syntax(object):
                     if self.current.recognized_string == ")":
                         self.getToken()
                         if self.statements():
-                            genQuad("jump", "_","_",tmpQuad)
+                            genQuad("jump", "_", "_", tmpQuad)
                             backpatch(tmpWlstfalse, nextQuad())
                             return True
                         else:
@@ -831,7 +996,7 @@ class Syntax(object):
         if self.current.recognized_string == "switchcase":
             exitList = emptyList()
             self.getToken()
-            if(self.current.recognized_string == "case"):
+            if (self.current.recognized_string == "case"):
                 while self.current.recognized_string == "case":
                     self.getToken()
                     if self.current.recognized_string == "(":
@@ -844,12 +1009,12 @@ class Syntax(object):
                                 self.getToken()
                                 if self.statements():
                                     t = makeList(nextQuad())
-                                    genQuad("jump","_","_", "_")
+                                    genQuad("jump", "_", "_", "_")
                                     exitList = mergeList(exitList, t)
                                     backpatch(tmpSlstfalse, nextQuad())
                                     if (self.current.recognized_string == "default"):
                                         break
-                                    if(self.current.recognized_string == "}"):
+                                    if (self.current.recognized_string == "}"):
                                         self.getToken()
                                 else:
                                     Error(self, "statements not found in case")
@@ -867,7 +1032,7 @@ class Syntax(object):
             if self.current.recognized_string == "default":
                 self.getToken()
                 if self.statements():
-                    backpatch(exitList,nextQuad())
+                    backpatch(exitList, nextQuad())
                     return True
                 else:
                     Error(self, "statements not found on default switchcase")
@@ -882,7 +1047,7 @@ class Syntax(object):
         if self.current.recognized_string == "forcase":
             firstCondQuad = nextQuad()
             self.getToken()
-            if(self.current.recognized_string == "case"):
+            if (self.current.recognized_string == "case"):
                 while self.current.recognized_string == "case":
                     self.getToken()
                     if self.current.recognized_string == "(":
@@ -895,13 +1060,13 @@ class Syntax(object):
                                 self.getToken()
                                 if self.statements():
                                     last = "_"
-                                    if(quads[len(quads)-1].getFirst() == ":="):
+                                    if (quads[len(quads) - 1].getFirst() == ":="):
                                         last = firstCondQuad
-                                    genQuad("jump","_","_", last)
+                                    genQuad("jump", "_", "_", last)
                                     backpatch(tmpFlstfalse, nextQuad())
                                     if (self.current.recognized_string == "default"):
                                         break
-                                    if(self.current.recognized_string == "}"):
+                                    if (self.current.recognized_string == "}"):
                                         self.getToken()
                                 else:
                                     Error(self, "statements not found in case")
@@ -935,7 +1100,7 @@ class Syntax(object):
             firstCondQuad = nextQuad()
             genQuad(":=", 0, "_", flag)
             self.getToken()
-            if(self.current.recognized_string == "case"):
+            if (self.current.recognized_string == "case"):
                 while self.current.recognized_string == "case":
                     self.getToken()
                     if self.current.recognized_string == "(":
@@ -947,9 +1112,9 @@ class Syntax(object):
                             if self.current.recognized_string == ")":
                                 self.getToken()
                                 if self.statements():
-                                    genQuad(":=",1,"_",flag)
+                                    genQuad(":=", 1, "_", flag)
                                     backpatch(tmpIlstfalse, nextQuad())
-                                    if(self.current.recognized_string == "}"):
+                                    if (self.current.recognized_string == "}"):
                                         self.getToken()
                                 else:
                                     Error(self, "statements not found in case")
@@ -973,13 +1138,13 @@ class Syntax(object):
                 self.getToken()
                 returnName = self.current.recognized_string
                 if self.expression():
-                    if(self.offset + 1 < len(self.stream)):
-                        if(self.stream[self.offset+1].recognized_string == ")"):
+                    if (self.offset + 1 < len(self.stream)):
+                        if (self.stream[self.offset + 1].recognized_string == ")"):
                             self.getToken()
                     if self.current.recognized_string == ")":
-                        tmpVar = quads[len(quads)-2].getSecond()
-                        if(quads[len(quads)-2].getFirst() == "ret"):
-                            tmpVar = self.stream[self.offset-1].recognized_string
+                        tmpVar = quads[len(quads) - 2].getSecond()
+                        if (quads[len(quads) - 2].getFirst() == "ret"):
+                            tmpVar = self.stream[self.offset - 1].recognized_string
                         genQuad("ret", "_", "_", tmpVar)
                         return True
                     else:
@@ -1074,12 +1239,12 @@ class Syntax(object):
             if self.current.recognized_string == "in":
                 self.getToken()
                 tmpVar = self.current.recognized_string
-                tmptmp = self.stream[self.offset+1].recognized_string
+                tmptmp = self.stream[self.offset + 1].recognized_string
                 if self.expression():
-                    if(self.stream[self.offset-1].recognized_string != tmpVar):
-                        if(quads[len(quads)-1].getFourth() != "_"):
-                            tmpVar = quads[len(quads)-1].getFourth()
-                    if(tmptmp != "("):
+                    if (self.stream[self.offset - 1].recognized_string != tmpVar):
+                        if (quads[len(quads) - 1].getFourth() != "_"):
+                            tmpVar = quads[len(quads) - 1].getFourth()
+                    if (tmptmp != "("):
                         genQuad("par", tmpVar, "cv", "_")
                     return True
                 else:
@@ -1100,16 +1265,16 @@ class Syntax(object):
     def condition(self):
         ok = 1
         if self.boolterm():
-            if(self.current.recognized_string == "or"):
+            if (self.current.recognized_string == "or"):
                 global trueList
                 global falseList
-                
+
                 while self.current.recognized_string == "or":
-                    if(len(falseList) != 0):
-                        for i in range(0,len(falseList)):
-                            backpatch([falseList[i]], trueList[i]+2)
-                        trueList =[]
-                        falseList =[]
+                    if (len(falseList) != 0):
+                        for i in range(0, len(falseList)):
+                            backpatch([falseList[i]], trueList[i] + 2)
+                        trueList = []
+                        falseList = []
                     self.getToken()
                     if self.boolterm():
                         continue
@@ -1117,7 +1282,7 @@ class Syntax(object):
                         ok = -1
                         Error(self, "boolterm not found")
                         break
-            if(ok == 1):
+            if (ok == 1):
                 return True
         Error(self, "boolterm not found")
         return False
@@ -1125,27 +1290,27 @@ class Syntax(object):
     def boolterm(self):
         ok = 1
         if self.boolfactor():
-            if(self.current.recognized_string == "and"):
+            if (self.current.recognized_string == "and"):
                 while self.current.recognized_string == "and":
                     self.getToken()
-                    
+
                     if self.boolfactor():
                         continue
                     else:
                         ok = -1
                         Error(self, "boolfactor not found")
                         break
-            if(ok == 1):
+            if (ok == 1):
                 global trueList
                 for i in range(0, len(trueList)):
-                    backpatch([trueList[i]], trueList[i]+2)
+                    backpatch([trueList[i]], trueList[i] + 2)
                 global falseList
                 global wListTrue
                 wListTrue += trueList
                 global wListFalse
                 wListFalse += falseList
-                trueList =[]
-                falseList =[]
+                trueList = []
+                falseList = []
 
                 return True
         Error(self, "boolfactor not found")
@@ -1177,36 +1342,34 @@ class Syntax(object):
                 Error(self, "condition not found")
             return False
         elif self.expression():
-            if(self.stream[self.offset+1].recognized_string in REL_OP):
+            if (self.stream[self.offset + 1].recognized_string in REL_OP):
                 self.getToken()
             if self.current.recognized_string in REL_OP:
                 tmpRelOp = self.current.recognized_string
-                tmpVar = self.stream[self.offset-1].recognized_string
+                tmpVar = self.stream[self.offset - 1].recognized_string
                 self.getToken()
                 tmp = self.current.recognized_string
                 if self.expression():
-                    if(quads[len(quads)-1].getFirst() in addOperator):
-                        tmpVar = quads[len(quads)-1].getFourth()
-                    if(quads[len(quads)-1].getFirst() in mulOperator):
-                        tmp = quads[len(quads)-1].getFourth()
-                    if(quads[len(quads)-1].getFirst() == "call"):
-                        tmpVar = quads[len(quads)-2].getSecond()
+                    if (quads[len(quads) - 1].getFirst() in addOperator):
+                        tmpVar = quads[len(quads) - 1].getFourth()
+                    if (quads[len(quads) - 1].getFirst() in mulOperator):
+                        tmp = quads[len(quads) - 1].getFourth()
+                    if (quads[len(quads) - 1].getFirst() == "call"):
+                        tmpVar = quads[len(quads) - 2].getSecond()
                     genQuad(tmpRelOp, tmpVar, tmp, "_")
 
                     global trueList
-                    trueList.append(quads[len(quads)-1].getId())
+                    trueList.append(quads[len(quads) - 1].getId())
                     genQuad("jump", "_", "_", "_")
                     global falseList
-                    falseList.append(quads[len(quads)-1].getId())
+                    falseList.append(quads[len(quads) - 1].getId())
                     return True
                 else:
-                     Error(self, "relop err")
+                    Error(self, "relop err")
             else:
                 Error(self, "relop err")
             return False
         return False
-
-
 
     def expression(self):
         templist = []
@@ -1214,7 +1377,7 @@ class Syntax(object):
         if self.optionalSign():
             temp1 = self.current.recognized_string
             if self.term():
-                if(self.stream[self.offset+1].recognized_string in addOperator):
+                if (self.stream[self.offset + 1].recognized_string in addOperator):
                     self.getToken()
                 if self.current.recognized_string in addOperator:
                     while self.current.recognized_string in addOperator:
@@ -1224,25 +1387,26 @@ class Syntax(object):
                         temp2 = self.current.recognized_string
                         if len(templist) != 0:
                             temp1 = templist.pop()
-                        if(self.stream[self.offset+1].recognized_string not in mulOperator and self.stream[self.offset+1].recognized_string != "("):
-                            if(temp2 != "("):
+                        if (self.stream[self.offset + 1].recognized_string not in mulOperator and self.stream[
+                            self.offset + 1].recognized_string != "("):
+                            if (temp2 != "("):
                                 temp3 = newTemp()
                                 templist.append(temp3)
-                                if(quads[len(quads)-1].getFirst() in mulOperator):
-                                    temp2 = quads[len(quads)-1].getFourth()
+                                if (quads[len(quads) - 1].getFirst() in mulOperator):
+                                    temp2 = quads[len(quads) - 1].getFourth()
                                 genQuad(op, temp1, temp2, temp3)
                             else:
                                 addNext = 1
                         else:
                             addNext = 1
                         if self.term():
-                            if(addNext == 1):
-                                temp2 = quads[len(quads)-1].getFourth()
+                            if (addNext == 1):
+                                temp2 = quads[len(quads) - 1].getFourth()
                                 newTempa = newTemp()
-                                if(len(lstlst) != 0):
+                                if (len(lstlst) != 0):
                                     temp1 = lstlst.pop()
-                                if(quads[len(quads)-1].getFirst() == "call" and quads[len(quads)-2].getThird()):
-                                    temp2 = quads[len(quads)-2].getSecond()
+                                if (quads[len(quads) - 1].getFirst() == "call" and quads[len(quads) - 2].getThird()):
+                                    temp2 = quads[len(quads) - 2].getSecond()
                                 genQuad(op, temp1, temp2, newTempa)
                                 lstlst.append(newTempa)
                             continue
@@ -1260,7 +1424,7 @@ class Syntax(object):
         temp1 = self.current.recognized_string
         tempp = self.current.recognized_string
         if self.factor():
-            if(self.current.recognized_string in mulOperator):
+            if (self.current.recognized_string in mulOperator):
                 while self.current.recognized_string in mulOperator:
                     temp1 = tempp
                     addNext = 0
@@ -1269,20 +1433,20 @@ class Syntax(object):
                     tempSecond = self.current.recognized_string
                     if len(templist) != 0:
                         temp1 = templist.pop()
-                    if(self.current.recognized_string != "("):
+                    if (self.current.recognized_string != "("):
                         temp3 = newTemp()
                         templist.append(temp3)
-                        if(self.stream[self.offset-2].recognized_string != ")"):
-                            tmpSecond = self.stream[self.offset-2].recognized_string
+                        if (self.stream[self.offset - 2].recognized_string != ")"):
+                            tmpSecond = self.stream[self.offset - 2].recognized_string
                         else:
-                            temp1 = quads[len(quads)-1].getFourth()
+                            temp1 = quads[len(quads) - 1].getFourth()
                         genQuad(op, temp1, self.current.recognized_string, temp3)
                         tempp = temp3
                     else:
                         addNext = 1
                     if self.factor():
-                        if(addNext == 1):
-                            temp2 = quads[len(quads)-1].getFourth()
+                        if (addNext == 1):
+                            temp2 = quads[len(quads) - 1].getFourth()
                             newTempe = newTemp()
                             genQuad(op, temp1, temp2, newTempe)
                             tempp = newTempe
@@ -1301,7 +1465,7 @@ class Syntax(object):
             return True
         elif self.current.recognized_string == "(":
             self.getToken()
-            if(self.expression()):
+            if (self.expression()):
                 if self.current.recognized_string != ")":
                     self.getToken()
                 if self.current.recognized_string == ")":
@@ -1312,7 +1476,7 @@ class Syntax(object):
         elif self.current.family == "id":
             self.getToken()
             if self.idtail():
-                if(self.stream[self.offset+1].recognized_string == ","):
+                if (self.stream[self.offset + 1].recognized_string == ","):
                     self.getToken()
                 return True
             Error(self, "err somewhere")
@@ -1322,15 +1486,15 @@ class Syntax(object):
 
     def idtail(self):
         if self.current.recognized_string == "(":
-            tmpId = self.stream[self.offset-1].recognized_string
+            tmpId = self.stream[self.offset - 1].recognized_string
             self.getToken()
 
             if self.actualparlist():
                 if self.current.recognized_string != ")":
                     self.getToken()
                 if self.current.recognized_string == ")":
-                    genQuad("par", newTemp(), "ret", "_",)
-                    genQuad("call", tmpId, "_", "_",)
+                    genQuad("par", newTemp(), "ret", "_", )
+                    genQuad("call", tmpId, "_", "_", )
                     return True
                 else:
                     Error(self, "ERR")
@@ -1349,19 +1513,19 @@ class Syntax(object):
         needNextItem = False
         ok = 0
         while self.statement():
-            if(self.current.recognized_string == "}"):
+            if (self.current.recognized_string == "}"):
                 zs = 0
-                if(self.stream[self.offset+1].recognized_string == ";"):
+                if (self.stream[self.offset + 1].recognized_string == ";"):
                     self.getToken()
-                while(self.current.recognized_string == ";"):
+                while (self.current.recognized_string == ";"):
                     self.getToken()
                     zs = 1
-                if(zs == 1):
+                if (zs == 1):
                     continue
                 return True
             ok = 1
             needNextItem = False
-            if(self.current.recognized_string in keywords):
+            if (self.current.recognized_string in keywords):
                 return False
             self.getToken()
             if self.current.recognized_string == ";":
@@ -1369,22 +1533,23 @@ class Syntax(object):
                 self.getToken()
             if self.current.recognized_string == ")":
                 break
-        
-        while(self.current.recognized_string in [")", ";"]):
+
+        while (self.current.recognized_string in [")", ";"]):
             self.getToken()
-        if(self.offset + 1 < len(self.stream)):
-            if(self.stream[self.offset+1].recognized_string == "case"):
+        if (self.offset + 1 < len(self.stream)):
+            if (self.stream[self.offset + 1].recognized_string == "case"):
                 self.getToken()
                 return True
-                
+
         if (needNextItem == True and self.current.recognized_string != "}"):
             Error(self, "Error, comma delimiter without next statement")
             return False
-            
-        if(ok == 1):
+
+        if (ok == 1):
             return True
 
     programName = ""
+
     def program(self):
         global wListTrue
         wListTrue = []
@@ -1406,6 +1571,7 @@ class Syntax(object):
                 if self.current.recognized_string == ".":
                     self.getToken()
                     if self.endFound:
+                        generateFinalCode(True)
                         popScope()
                         genQuad("halt", "_", "_", "_")
                         genQuad("end_block", programName, "_", "_")
@@ -1420,12 +1586,16 @@ class Syntax(object):
 
 def main(argv):
     form = argv
+    global final_code
+    final_code = ''
+    global label_num
+    label_num = 0
 
     if form is not None:
         lex = Lexer(form)
         token = lex.nextToken()
         while token is not None and not lex.endFound:
-       #     print(token)
+            #     print(token)
             lex.checkValidation(token)
             lex.tokenList.append(token)
             token = lex.nextToken()
