@@ -217,12 +217,12 @@ def finalCodeCases(ismain):
 
                 if parCount > 0:
                     genLabel()
-                if par[2] == "CV":
-                    loadvr(par[1], "t0")
+                if par.operand2 == "CV":
+                    loadvr(par.operand1, "t0")
                 else:
                     produce("addi t0, sp, -" + str(d))
                     produce("sw t0, -" + str(d) + "(fp)")
-                if par[2] == "RET":
+                if par.operand2 == "RET":
                     produce("addi t0, sp, -" + str(d))
                     produce("sw t0, -8(fp)")
                 parCount += 1
@@ -747,7 +747,7 @@ class Syntax(object):
                         if self.current.recognized_string == ")":
                             self.getToken()
                             if (self.block(1)):
-                                self.generateFinalCode(False)
+                                generateFinalCode(False)
                                 popScope()
                                 genQuad("end_block", blockName, "_", "_")
                                 return True
